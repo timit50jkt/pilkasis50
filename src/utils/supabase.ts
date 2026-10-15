@@ -124,6 +124,12 @@ export async function fetchAllFromSupabase(client: SupabaseClient): Promise<{
         totalRegisteredVoters: d.total_registered_voters,
         adminPin: d.admin_pin,
         announcementText: d.announcement_text,
+        quickCountTitle: d.quick_count_title,
+        quickCountSubtitle: d.quick_count_subtitle,
+        votingTitle: d.voting_title,
+        votingSubtitle: d.voting_subtitle,
+        tokenPrefix: d.token_prefix,
+        tokenLength: d.token_length,
         useSupabase: true
       };
     }

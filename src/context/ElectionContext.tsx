@@ -7,7 +7,14 @@ import { initSupabaseClient, fetchAllFromSupabase, testSupabaseConnection, safeS
 const STORAGE_KEY = 'smpn50_election_store_v2';
 const BROADCAST_NAME = 'smpn50_election_broadcast';
 
-interface ElectionStats {
+export interface CategoryStatItem {
+  candidate1: number;
+  candidate2: number;
+  total: number;
+  votesPerCandidate: Record<number, number>;
+}
+
+export interface ElectionStats {
   totalVotes: number;
   totalVoters: number;
   turnoutPercentage: number;
@@ -16,11 +23,11 @@ interface ElectionStats {
   leaderCandidateId: number | null;
   margin: number;
   marginPercentage: number;
-  byCategory: Record<VoterCategory, { candidate1: number; candidate2: number; total: number }>;
-  byClass: Record<string, { candidate1: number; candidate2: number; total: number }>;
+  byCategory: Record<string, CategoryStatItem>;
+  byClass: Record<string, CategoryStatItem>;
 }
 
-interface ElectionContextType {
+export interface ElectionContextType {
   candidates: CandidatePair[];
   tokens: VoterToken[];
   votes: VoteRecord[];
@@ -47,14 +54,19 @@ interface ElectionContextType {
   simulateVotes: (count: number) => void;
   resetAllElectionData: () => void;
   resetToDefaultSampleData: () => void;
-  // Settings & Supabase
+  resetVotersList: () => void;
+  resetTokensVoteStatus: () => void;
+  // Settings, Security & Supabase
   updateSettings: (newSettings: Partial<ElectionSettings>) => void;
+  validateAdminPassword: (attempt: string) => boolean;
+  updateAdminPassword: (newPin: string) => { success: boolean; message: string };
   connectSupabase: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
   disconnectSupabase: () => void;
   addAuditLog: (action: string, details: string, type?: AuditLogItem['type']) => void;
 }
 
 const ElectionContext = createContext<ElectionContextType | undefined>(undefined);
+
 
 export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [candidates, setCandidates] = useState<CandidatePair[]>(() => {
@@ -540,15 +552,20 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     (tokenStr: string, updated: Partial<VoterToken>) => {
       setTokens((prev) => {
         const next = prev.map((t) => (t.token === tokenStr ? { ...t, ...updated } : t));
-        addAuditLog('Data Pemilih Diubah', `Informasi untuk token ${tokenStr} telah disesuaikan.`, 'token');
+        addAuditLog(
+          'Data Pemilih Diubah',
+          `Informasi pemilih ${tokenStr} telah disesuaikan${updated.token && updated.token !== tokenStr ? ` (Token baru: ${updated.token})` : ''}.`,
+          'token'
+        );
         broadcastUpdate(candidates, next, votes, settings, auditLogs);
 
         const client = initSupabaseClient();
         if (client) {
-          const match = next.find((t) => t.token === tokenStr);
+          const match = next.find((t) => (updated.token ? t.token === updated.token : t.token === tokenStr));
           if (match) {
             safeSupabaseOperation(
               client.from('voters').update({
+                token: match.token,
                 voter_name: match.voterName,
                 class_group: match.classGroup,
                 category: match.category,
@@ -806,20 +823,28 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
         const client = initSupabaseClient();
         if (client) {
+          const settingsPayload: Record<string, unknown> = {
+            id: 'main',
+            election_name: merged.electionName,
+            academic_year: merged.academicYear,
+            school_name: merged.schoolName,
+            school_address: merged.schoolAddress,
+            logo_url: merged.logoUrl,
+            is_open: merged.isOpen,
+            total_registered_voters: merged.totalRegisteredVoters,
+            admin_pin: merged.adminPin,
+            announcement_text: merged.announcementText,
+            updated_at: new Date().toISOString()
+          };
+          if (merged.quickCountTitle !== undefined) settingsPayload.quick_count_title = merged.quickCountTitle;
+          if (merged.quickCountSubtitle !== undefined) settingsPayload.quick_count_subtitle = merged.quickCountSubtitle;
+          if (merged.votingTitle !== undefined) settingsPayload.voting_title = merged.votingTitle;
+          if (merged.votingSubtitle !== undefined) settingsPayload.voting_subtitle = merged.votingSubtitle;
+          if (merged.tokenPrefix !== undefined) settingsPayload.token_prefix = merged.tokenPrefix;
+          if (merged.tokenLength !== undefined) settingsPayload.token_length = merged.tokenLength;
+
           safeSupabaseOperation(
-            client.from('settings').upsert({
-              id: 'main',
-              election_name: merged.electionName,
-              academic_year: merged.academicYear,
-              school_name: merged.schoolName,
-              school_address: merged.schoolAddress,
-              logo_url: merged.logoUrl,
-              is_open: merged.isOpen,
-              total_registered_voters: merged.totalRegisteredVoters,
-              admin_pin: merged.adminPin,
-              announcement_text: merged.announcementText,
-              updated_at: new Date().toISOString()
-            })
+            client.from('settings').upsert(settingsPayload)
           );
         }
 
@@ -828,6 +853,93 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     },
     [candidates, tokens, votes, auditLogs, addAuditLog, broadcastUpdate]
   );
+
+  // Validate Admin Password
+  const validateAdminPassword = useCallback((attempt: string): boolean => {
+    const cleanAttempt = attempt.trim();
+    if (!cleanAttempt) return false;
+    const storedPin = localStorage.getItem('smpn50_admin_password') || settings.adminPin || '5050';
+    return cleanAttempt === storedPin.trim();
+  }, [settings.adminPin]);
+
+  // Update Admin Password
+  const updateAdminPassword = useCallback((newPin: string): { success: boolean; message: string } => {
+    const clean = newPin.trim();
+    if (clean.length < 4) {
+      return { success: false, message: 'Kata sandi / PIN minimal 4 karakter.' };
+    }
+
+    try {
+      localStorage.setItem('smpn50_admin_password', clean);
+    } catch {
+      // ignore
+    }
+
+    setSettings((prev) => {
+      const next = { ...prev, adminPin: clean };
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+
+      const client = initSupabaseClient();
+      if (client) {
+        safeSupabaseOperation(
+          client.from('settings').update({ admin_pin: clean, updated_at: new Date().toISOString() }).eq('id', 'main')
+        );
+      }
+      return next;
+    });
+
+    addAuditLog('Kata Sandi Diubah', 'Kata sandi Panitia MPK berhasil diperbarui.', 'config');
+    return { success: true, message: 'Kata sandi Panitia MPK berhasil disimpan!' };
+  }, [addAuditLog]);
+
+  // Reset Voters List (DPT Kosong)
+  const resetVotersList = useCallback(() => {
+    setTokens([]);
+    setVotes([]);
+    setLastVoteTime(null);
+    addAuditLog('DPT Dikosongkan', 'Seluruh daftar pemilih (DPT) dan kotak suara dikosongkan oleh Panitia.', 'config');
+    broadcastUpdate(candidates, [], [], settings, auditLogs);
+
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify([]));
+    } catch {
+      // ignore
+    }
+
+    const client = initSupabaseClient();
+    if (client) {
+      safeSupabaseOperation(client.from('votes').delete().neq('id', 'placeholder'));
+      safeSupabaseOperation(client.from('voters').delete().neq('token', 'placeholder'));
+    }
+  }, [candidates, settings, auditLogs, addAuditLog, broadcastUpdate]);
+
+  // Reset Status Memilih (Kembalikan status semua token menjadi belum coblos, kosongkan suara)
+  const resetTokensVoteStatus = useCallback(() => {
+    const unvotedTokens = tokens.map((t) => ({ ...t, isUsed: false, usedAt: undefined }));
+    setTokens(unvotedTokens);
+    setVotes([]);
+    setLastVoteTime(null);
+    addAuditLog('Status Memilih Direset', 'Semua pemilih dikembalikan statusnya menjadi Belum Memilih dan kotak suara dikosongkan.', 'config');
+    broadcastUpdate(candidates, unvotedTokens, [], settings, auditLogs);
+
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify(unvotedTokens));
+      localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify([]));
+    } catch {
+      // ignore
+    }
+
+    const client = initSupabaseClient();
+    if (client) {
+      safeSupabaseOperation(client.from('votes').delete().neq('id', 'placeholder'));
+      safeSupabaseOperation(client.from('voters').update({ is_used: false, used_at: null }).neq('token', 'placeholder'));
+    }
+  }, [candidates, tokens, settings, auditLogs, addAuditLog, broadcastUpdate]);
 
   // Connect Supabase
   const connectSupabase = useCallback(async (url: string, key: string) => {
@@ -880,13 +992,13 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       votesPerCandidate[c.id] = 0;
     });
 
-    const byCategory: Record<VoterCategory, { candidate1: number; candidate2: number; total: number }> = {
-      'Kelas 7': { candidate1: 0, candidate2: 0, total: 0 },
-      'Kelas 8': { candidate1: 0, candidate2: 0, total: 0 },
-      'Kelas 9': { candidate1: 0, candidate2: 0, total: 0 },
-      'Guru & Staf': { candidate1: 0, candidate2: 0, total: 0 }
+    const byCategory: Record<string, CategoryStatItem> = {
+      'Siswa': { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} },
+      'Guru': { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} },
+      'Tata Usaha': { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} },
+      'Tendik': { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} }
     };
-    const byClass: Record<string, { candidate1: number; candidate2: number; total: number }> = {};
+    const byClass: Record<string, CategoryStatItem> = {};
 
     votes.forEach((v) => {
       if (votesPerCandidate[v.candidateId] !== undefined) {
@@ -895,19 +1007,23 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         votesPerCandidate[v.candidateId] = 1;
       }
 
-      if (byCategory[v.voterCategory]) {
-        if (v.candidateId === 1) byCategory[v.voterCategory].candidate1++;
-        if (v.candidateId === 2) byCategory[v.voterCategory].candidate2++;
-        byCategory[v.voterCategory].total++;
+      const cat = v.voterCategory || 'Siswa';
+      if (!byCategory[cat]) {
+        byCategory[cat] = { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} };
       }
+      byCategory[cat].total++;
+      byCategory[cat].votesPerCandidate[v.candidateId] = (byCategory[cat].votesPerCandidate[v.candidateId] || 0) + 1;
+      if (v.candidateId === 1) byCategory[cat].candidate1++;
+      if (v.candidateId === 2) byCategory[cat].candidate2++;
 
       const cls = v.classGroup || 'Umum';
       if (!byClass[cls]) {
-        byClass[cls] = { candidate1: 0, candidate2: 0, total: 0 };
+        byClass[cls] = { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} };
       }
+      byClass[cls].total++;
+      byClass[cls].votesPerCandidate[v.candidateId] = (byClass[cls].votesPerCandidate[v.candidateId] || 0) + 1;
       if (v.candidateId === 1) byClass[cls].candidate1++;
       if (v.candidateId === 2) byClass[cls].candidate2++;
-      byClass[cls].total++;
     });
 
     const percentagePerCandidate: Record<number, number> = {};
@@ -936,13 +1052,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       leaderCandidateId = null;
     }
 
-    const c1Votes = votesPerCandidate[1] || 0;
-    const c2Votes = votesPerCandidate[2] || 0;
-    const margin = Math.abs(c1Votes - c2Votes);
+    // Sort counts to find margin between top 2
+    const sortedCounts = Object.values(votesPerCandidate).sort((a, b) => b - a);
+    const margin = sortedCounts.length >= 2 ? sortedCounts[0] - sortedCounts[1] : (sortedCounts[0] || 0);
     const marginPercentage =
-      totalVotes > 0
-        ? Number(Math.abs((percentagePerCandidate[1] || 0) - (percentagePerCandidate[2] || 0)).toFixed(1))
-        : 0;
+      totalVotes > 0 ? Number(((margin / totalVotes) * 100).toFixed(1)) : 0;
 
     return {
       totalVotes,
@@ -984,7 +1098,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         simulateVotes,
         resetAllElectionData,
         resetToDefaultSampleData,
+        resetVotersList,
+        resetTokensVoteStatus,
         updateSettings,
+        validateAdminPassword,
+        updateAdminPassword,
         connectSupabase,
         disconnectSupabase,
         addAuditLog
@@ -1002,3 +1120,4 @@ export function useElection() {
   }
   return context;
 }
+

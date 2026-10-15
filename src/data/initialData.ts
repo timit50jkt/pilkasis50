@@ -8,7 +8,13 @@ export const INITIAL_SETTINGS: ElectionSettings = {
   isOpen: true,
   totalRegisteredVoters: 720,
   adminPin: '5050',
-  announcementText: 'Pemungutan suara berlangsung hingga pukul 14:00 WIB. Gunakan token unik Anda dengan bijak dan rahasia.'
+  announcementText: 'Pemungutan suara berlangsung hingga pukul 14:00 WIB. Gunakan token unik Anda dengan bijak dan rahasia.',
+  quickCountTitle: 'Quick Count Perhitungan Suara Pemilihan OSIS',
+  quickCountSubtitle: 'Pantau perolehan suara resmi secara real-time, transparan, dan akurat.',
+  votingTitle: 'Masuk dengan Token Pemilihan',
+  votingSubtitle: 'Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos.',
+  tokenPrefix: 'SMP50-',
+  tokenLength: 6
 };
 
 export const CANDIDATE_PAIRS: CandidatePair[] = [
@@ -108,16 +114,15 @@ export function generateInitialTokensAndVotes(): { tokens: VoterToken[]; votes: 
   const votes: VoteRecord[] = [];
 
   const classes = [
-    { name: '7A', category: 'Kelas 7' as const, count: 12 },
-    { name: '7B', category: 'Kelas 7' as const, count: 12 },
-    { name: '7C', category: 'Kelas 7' as const, count: 10 },
-    { name: '8A', category: 'Kelas 8' as const, count: 12 },
-    { name: '8B', category: 'Kelas 8' as const, count: 12 },
-    { name: '8C', category: 'Kelas 8' as const, count: 10 },
-    { name: '9A', category: 'Kelas 9' as const, count: 12 },
-    { name: '9B', category: 'Kelas 9' as const, count: 12 },
-    { name: '9C', category: 'Kelas 9' as const, count: 10 },
-    { name: 'GURU', category: 'Guru & Staf' as const, count: 12 }
+    { name: '7A', category: 'Siswa' as const, count: 12 },
+    { name: '7B', category: 'Siswa' as const, count: 12 },
+    { name: '8A', category: 'Siswa' as const, count: 12 },
+    { name: '8B', category: 'Siswa' as const, count: 12 },
+    { name: '9A', category: 'Siswa' as const, count: 12 },
+    { name: '9B', category: 'Siswa' as const, count: 12 },
+    { name: 'Guru', category: 'Guru' as const, count: 10 },
+    { name: 'TU', category: 'Tata Usaha' as const, count: 6 },
+    { name: 'Tendik', category: 'Tendik' as const, count: 6 }
   ];
 
   let voteCounter = 1;
@@ -126,7 +131,7 @@ export function generateInitialTokensAndVotes(): { tokens: VoterToken[]; votes: 
   classes.forEach((c) => {
     for (let i = 1; i <= c.count; i++) {
       const padNum = String(i).padStart(2, '0');
-      const tokenStr = `SMP50-${c.name}-${padNum}${Math.floor(100 + Math.random() * 900)}`;
+      const tokenStr = `SMP50-${c.name.replace(/\s+/g, '')}-${padNum}${Math.floor(100 + Math.random() * 900)}`;
 
       // Simulate roughly 60% of voters have cast their votes to show realistic quick count graph right away
       const isVoted = i <= Math.floor(c.count * 0.65);
@@ -150,9 +155,14 @@ export function generateInitialTokensAndVotes(): { tokens: VoterToken[]; votes: 
         });
       }
 
+      let voterLabel = `Siswa/i ${c.name} Absen ${i}`;
+      if (c.category === 'Guru') voterLabel = `Bapak/Ibu Guru #${i}`;
+      else if (c.category === 'Tata Usaha') voterLabel = `Staf Tata Usaha #${i}`;
+      else if (c.category === 'Tendik') voterLabel = `Tenaga Kependidikan #${i}`;
+
       tokens.push({
         token: tokenStr,
-        voterName: c.name === 'GURU' ? `Bapak/Ibu Guru & Staf ${i}` : `Siswa/i ${c.name} Absen ${i}`,
+        voterName: voterLabel,
         classGroup: c.name,
         category: c.category,
         isUsed: isVoted,

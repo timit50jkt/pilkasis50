@@ -26,7 +26,7 @@ export const CandidateCards: React.FC<CandidateCardsProps> = ({
             <span>Profil Pasangan Calon Pemilihan OSIS</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Mengenal Lebih Dekat Paslon 01 & Paslon 02
+            Mengenal Lebih Dekat {candidates.length} Pasangan Calon Pemimpin OSIS
           </h1>
           <p className="mt-2 text-sm text-slate-600 leading-relaxed">
             Ketahui visi, misi, rekam jejak, dan program kerja unggulan calon pemimpin OSIS SMP Negeri 50 Jakarta untuk masa bakti yang akan datang.
@@ -44,8 +44,8 @@ export const CandidateCards: React.FC<CandidateCardsProps> = ({
         </div>
       </div>
 
-      {/* Grid of 2 Candidates */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Grid of Candidates */}
+      <div className={`grid grid-cols-1 ${candidates.length === 2 ? 'lg:grid-cols-2' : candidates.length === 3 ? 'lg:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-3'} gap-8`}>
         {candidates.map((c) => {
           const voteCount = stats.votesPerCandidate[c.id] || 0;
           const votePercent = stats.percentagePerCandidate[c.id] || 0;

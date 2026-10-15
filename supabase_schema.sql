@@ -15,8 +15,22 @@ CREATE TABLE IF NOT EXISTS public.settings (
     total_registered_voters INT NOT NULL DEFAULT 720,
     admin_pin TEXT NOT NULL DEFAULT '5050',
     announcement_text TEXT DEFAULT 'Pemungutan suara berlangsung hingga pukul 14:00 WIB. Gunakan token unik Anda dengan bijak dan rahasia.',
+    quick_count_title TEXT DEFAULT 'Quick Count Perhitungan Suara Pemilihan OSIS',
+    quick_count_subtitle TEXT DEFAULT 'Pantau perolehan suara resmi secara real-time, transparan, dan akurat.',
+    voting_title TEXT DEFAULT 'Masuk dengan Token Pemilihan',
+    voting_subtitle TEXT DEFAULT 'Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos.',
+    token_prefix TEXT DEFAULT 'SMP50-',
+    token_length INT DEFAULT 6,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Migrasi tambahan untuk tabel settings jika sudah dibuat sebelumnya
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS quick_count_title TEXT DEFAULT 'Quick Count Perhitungan Suara Pemilihan OSIS';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS quick_count_subtitle TEXT DEFAULT 'Pantau perolehan suara resmi secara real-time, transparan, dan akurat.';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS voting_title TEXT DEFAULT 'Masuk dengan Token Pemilihan';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS voting_subtitle TEXT DEFAULT 'Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos.';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS token_prefix TEXT DEFAULT 'SMP50-';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS token_length INT DEFAULT 6;
 
 -- 2. Tabel Pasangan Calon (Kandidat OSIS)
 CREATE TABLE IF NOT EXISTS public.candidates (

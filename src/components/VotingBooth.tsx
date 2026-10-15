@@ -125,7 +125,7 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
 
             <div className="pt-2 border-t border-slate-200 text-slate-500 italic text-[11px] flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>Pilihan Anda dijamin 100% rahasia sesuai asas LUBER JURDIL.</span>
+              <span>Pilihan Anda dijamin 100% rahasia, langsung, dan aman.</span>
             </div>
           </div>
 
@@ -367,13 +367,13 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200/60">
           <KeyRound className="w-3.5 h-3.5" />
-          <span>Autentikasi Bilik Suara SMPN 50 Jakarta</span>
+          <span>Bilik Suara {settings.schoolName}</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Masuk dengan Token Pemilihan
+          {settings.votingTitle || 'Masuk dengan Token Pemilihan'}
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-          Gunakan token unik yang telah dibagikan oleh Panitia MPK/OSIS. Setiap token hanya berlaku satu kali coblos.
+          {settings.votingSubtitle || 'Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos.'}
         </p>
       </div>
 
@@ -382,7 +382,7 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
         <form onSubmit={handleValidateToken} className="space-y-4">
           <div>
             <label htmlFor="tokenInput" className="block text-xs font-semibold text-slate-700 mb-1.5">
-              KODE TOKEN PEMILIH
+              TOKEN PEMILIH
             </label>
             <div className="relative">
               <input
@@ -393,7 +393,7 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
                   setInputToken(e.target.value.toUpperCase());
                   setErrorMessage(null);
                 }}
-                placeholder="Contoh: SMP50-7A-4819"
+                placeholder={`Contoh: ${settings.tokenPrefix || 'SMP50-'}7A-4819`}
                 className="w-full px-4 py-3 text-base sm:text-lg font-mono tracking-wider uppercase rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent placeholder:text-slate-400"
                 autoComplete="off"
                 spellCheck="false"
@@ -448,11 +448,11 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 text-xs text-slate-600 space-y-2">
           <div className="font-semibold text-slate-800 flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Ketentuan Pemilihan SMPN 50:</span>
+            <span>Ketentuan Pemilihan {settings.schoolName}:</span>
           </div>
           <ul className="list-disc list-inside space-y-1 text-[11px] text-slate-500">
-            <li>Satu siswa hanya memiliki satu hak suara yang tidak dapat dialihkan.</li>
-            <li>Sistem menjamin kerahasiaan pilihan Anda secara otomatis (LUBER JURDIL).</li>
+            <li>Satu pemilih hanya memiliki satu hak suara yang tidak dapat dialihkan.</li>
+            <li>Sistem menjamin kerahasiaan pilihan Anda secara langsung dan aman.</li>
             <li>Apabila token Anda hilang atau bermasalah, segera lapor ke Panitia MPK.</li>
           </ul>
         </div>

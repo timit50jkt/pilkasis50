@@ -30,7 +30,7 @@ export interface CandidatePair {
   }[];
 }
 
-export type VoterCategory = 'Kelas 7' | 'Kelas 8' | 'Kelas 9' | 'Guru & Staf';
+export type VoterCategory = 'Siswa' | 'Guru' | 'Tata Usaha' | 'Tendik' | 'Kelas 7' | 'Kelas 8' | 'Kelas 9' | 'Guru & Staf';
 
 export interface VoterToken {
   token: string;
@@ -70,4 +70,11 @@ export interface ElectionSettings {
   supabaseUrl?: string;
   supabaseAnonKey?: string;
   useSupabase?: boolean;
+  // Customizable Titles & Token Settings
+  quickCountTitle?: string;
+  quickCountSubtitle?: string;
+  votingTitle?: string;
+  votingSubtitle?: string;
+  tokenPrefix?: string;
+  tokenLength?: number;
 }

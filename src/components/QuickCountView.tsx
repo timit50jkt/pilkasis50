@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useElection } from '../context/ElectionContext';
 import { CandidatePair, VoterCategory } from '../types/election';
-import { CheckCircle2, Trophy, Clock, Vote, ArrowRight, ShieldCheck, RefreshCw, BarChart2 } from 'lucide-react';
+import { Trophy, Clock, Vote, ArrowRight, ShieldCheck, BarChart2 } from 'lucide-react';
 
 interface QuickCountViewProps {
   onGoToVoting: () => void;
@@ -11,14 +11,6 @@ interface QuickCountViewProps {
 export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, onViewCandidateDetails }) => {
   const { candidates, stats, settings, lastVoteTime, tokens } = useElection();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  const c1 = candidates[0];
-  const c2 = candidates[1];
-
-  const c1Votes = stats.votesPerCandidate[1] || 0;
-  const c2Votes = stats.votesPerCandidate[2] || 0;
-  const c1Percent = stats.percentagePerCandidate[1] || 0;
-  const c2Percent = stats.percentagePerCandidate[2] || 0;
 
   const unusedTokensCount = tokens.filter((t) => !t.isUsed).length;
 
@@ -32,19 +24,21 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
       {/* Hero Banner Section */}
       <section className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-xs">
         <div className="max-w-4xl">
-          <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-slate-500 mb-3">
+          <div className="flex items-center gap-2 text-xs md:text-sm font-medium text-slate-500 mb-3 flex-wrap">
             <span className="text-blue-800 font-semibold">{settings.schoolName}</span>
             <span aria-hidden="true">·</span>
             <span>Tahun Ajaran {settings.academicYear}</span>
             <span aria-hidden="true">·</span>
-            <span>Asas LUBER JURDIL</span>
+            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full text-[11px] font-bold">
+              {candidates.length} Pasangan Calon
+            </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight text-balance leading-tight">
-            Quick Count Perhitungan Suara Pemilihan OSIS
+            {settings.quickCountTitle || 'Quick Count Perhitungan Suara Pemilihan OSIS'}
           </h1>
           <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed">
-            Pantau perolehan suara resmi Calon Ketua dan Wakil Ketua OSIS SMP Negeri 50 Jakarta secara real-time, transparan, dan akurat.
+            {settings.quickCountSubtitle || `Pantau perolehan suara resmi Calon Ketua dan Wakil Ketua OSIS ${settings.schoolName} secara real-time, transparan, dan akurat.`}
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -57,13 +51,13 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-2 text-xs text-slate-500 py-1 px-2.5 bg-slate-100 rounded-md">
+            <div className="flex items-center gap-2 text-xs text-slate-500 py-1.5 px-3 bg-slate-100 rounded-md">
               <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>Update Terakhir: {formattedLastUpdate}</span>
             </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-600 py-1 px-2.5 bg-slate-100 rounded-md">
-              <span className={`inline-block w-2 h-2 rounded-full ${settings.isOpen ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+            <div className="flex items-center gap-2 text-xs text-slate-600 py-1.5 px-3 bg-slate-100 rounded-md">
+              <span className={`inline-block w-2 h-2 rounded-full ${settings.isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
               <span>Status: {settings.isOpen ? 'Pemungutan Suara Aktif' : 'Pemungutan Suara Ditutup'}</span>
             </div>
           </div>
@@ -81,7 +75,7 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
             <span className="text-xs text-slate-500">/ {stats.totalVoters} DPT</span>
           </div>
           <div className="mt-2 text-xs text-slate-500">
-            {unusedTokensCount} siswa belum memberikan suara
+            {unusedTokensCount} pemilih belum memberikan suara
           </div>
         </div>
 
@@ -112,7 +106,7 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
           </div>
           <div className="mt-2 text-xs text-slate-500">
             {stats.leaderCandidateId
-              ? `Dipimpin oleh Paslon No. 0${stats.leaderCandidateId}`
+              ? `Dipimpin oleh Paslon No. ${candidates.find((c) => c.id === stats.leaderCandidateId)?.number || stats.leaderCandidateId}`
               : 'Perolehan suara imbang'}
           </div>
         </div>
@@ -121,199 +115,145 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Validitas & Keamanan</div>
           <div className="mt-2 flex items-center gap-2 text-emerald-600 font-semibold text-sm">
             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-            <span>Token 100% Terenkripsi</span>
+            <span>Token Terenkripsi</span>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            1 siswa = 1 token rahasia, audit trail otomatis.
+            1 pemilih = 1 token rahasia, audit trail otomatis.
           </p>
         </div>
       </section>
 
-      {/* Main Candidate Quick Count Showdown Cards */}
+      {/* Main Candidates Quick Count Cards (Dynamic for N candidates) */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-            Perolehan Suara Calon Ketua & Wakil Ketua OSIS
+            Perolehan Suara Pasangan Calon OSIS ({candidates.length} Paslon)
           </h2>
           <div className="text-xs text-slate-500">
             Total {stats.totalVotes} Suara Sah Terverifikasi
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* PASLON 01 */}
-          <div
-            className={`relative bg-white rounded-2xl border transition-all duration-300 overflow-hidden shadow-xs ${
-              stats.leaderCandidateId === 1
-                ? 'border-blue-500 ring-2 ring-blue-500/20'
-                : 'border-slate-200'
-            }`}
-          >
-            {/* Lead Tag */}
-            {stats.leaderCandidateId === 1 && stats.totalVotes > 0 && (
-              <div className="bg-blue-600 text-white text-xs font-bold py-1 px-4 flex items-center justify-center gap-1.5 tracking-wide">
-                <Trophy className="w-3.5 h-3.5" />
-                <span>MEMIMPIN SEMENTARA (+{stats.margin} SUARA)</span>
-              </div>
-            )}
+        <div
+          className={`grid grid-cols-1 ${
+            candidates.length === 2
+              ? 'lg:grid-cols-2'
+              : candidates.length === 3
+              ? 'lg:grid-cols-3'
+              : 'md:grid-cols-2 xl:grid-cols-4'
+          } gap-6`}
+        >
+          {candidates.map((c) => {
+            const isLeader = stats.leaderCandidateId === c.id;
+            const voteCount = stats.votesPerCandidate[c.id] || 0;
+            const votePercent = stats.percentagePerCandidate[c.id] || 0;
 
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                {/* Photo Poster */}
-                <div className="relative w-full sm:w-44 h-56 sm:h-56 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-xs">
-                  <img
-                    src={c1.posterImage}
-                    alt="Foto Paslon 01 Andra Pratama & Maya Lestari"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-top"
-                  />
-                  <div className="absolute top-2 left-2 bg-blue-700 text-white font-extrabold text-sm px-2.5 py-1 rounded-md shadow-xs">
-                    01
+            return (
+              <div
+                key={c.id}
+                className={`relative bg-white rounded-2xl border transition-all duration-300 overflow-hidden shadow-xs flex flex-col justify-between ${
+                  isLeader && stats.totalVotes > 0
+                    ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-md'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {/* Lead Banner */}
+                {isLeader && stats.totalVotes > 0 && (
+                  <div
+                    className="text-white text-xs font-bold py-1 px-4 flex items-center justify-center gap-1.5 tracking-wide shadow-xs"
+                    style={{ backgroundColor: c.color.primary }}
+                  >
+                    <Trophy className="w-3.5 h-3.5" />
+                    <span>MEMIMPIN SEMENTARA (+{stats.margin} SUARA)</span>
                   </div>
-                </div>
+                )}
 
-                {/* Candidate Info & Score */}
-                <div className="flex-1 w-full space-y-3">
-                  <div>
-                    <span className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
-                      Pasangan Calon No. 01
-                    </span>
-                    <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                      {c1.chairman.name} & {c1.viceChairman.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {c1.chairman.class} & {c1.viceChairman.class}
-                    </p>
-                    <p className="text-xs italic text-slate-600 mt-1.5">
-                      "{c1.tagline}"
-                    </p>
+                <div className="p-5 sm:p-6 space-y-4 flex-1 flex flex-col justify-between">
+                  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                    {/* Photo Poster */}
+                    <div className="relative w-full sm:w-36 h-48 sm:h-48 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-xs">
+                      <img
+                        src={c.posterImage}
+                        alt={`Foto Paslon ${c.number} ${c.chairman.name}`}
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover object-top"
+                      />
+                      <div
+                        className="absolute top-2 left-2 text-white font-extrabold text-sm px-2.5 py-1 rounded-md shadow-xs"
+                        style={{ backgroundColor: c.color.primary }}
+                      >
+                        {c.number}
+                      </div>
+                    </div>
+
+                    {/* Candidate Info */}
+                    <div className="flex-1 w-full space-y-1.5">
+                      <span
+                        className="text-xs font-bold uppercase tracking-wider block"
+                        style={{ color: c.color.primary }}
+                      >
+                        Pasangan Calon No. {c.number}
+                      </span>
+                      <h3 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
+                        {c.chairman.name} & {c.viceChairman.name}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {c.chairman.class} & {c.viceChairman.class}
+                      </p>
+                      <p className="text-xs italic text-slate-600 line-clamp-2 bg-slate-50 p-2 rounded border border-slate-100">
+                        "{c.tagline}"
+                      </p>
+                    </div>
                   </div>
 
                   {/* Big Number Progress */}
-                  <div className="bg-blue-50/70 rounded-xl p-4 border border-blue-100">
+                  <div
+                    className="rounded-xl p-4 border"
+                    style={{ backgroundColor: c.color.bgSoft || '#f8fafc', borderColor: c.color.border || '#e2e8f0' }}
+                  >
                     <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="text-3xl sm:text-4xl font-extrabold font-mono tabular-nums text-blue-900">
-                        {c1Percent}%
+                      <span
+                        className="text-3xl sm:text-4xl font-extrabold font-mono tabular-nums"
+                        style={{ color: c.color.primary }}
+                      >
+                        {votePercent}%
                       </span>
-                      <span className="text-sm font-semibold font-mono tabular-nums text-blue-800">
-                        {c1Votes.toLocaleString('id-ID')} Suara
+                      <span className="text-sm font-semibold font-mono tabular-nums text-slate-700">
+                        {voteCount.toLocaleString('id-ID')} Suara
                       </span>
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="w-full bg-blue-200/60 rounded-full h-3 overflow-hidden">
+                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
                       <div
-                        className="bg-blue-600 h-3 rounded-full transition-all duration-700 ease-out"
-                        style={{ width: `${c1Percent}%` }}
+                        className="h-3 rounded-full transition-all duration-700 ease-out"
+                        style={{ width: `${votePercent}%`, backgroundColor: c.color.primary }}
                       />
                     </div>
                   </div>
 
-                  <div className="pt-1 flex items-center justify-between">
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                     <button
-                      onClick={() => onViewCandidateDetails(c1)}
-                      className="text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                      onClick={() => onViewCandidateDetails(c)}
+                      className="text-xs font-semibold hover:underline"
+                      style={{ color: c.color.primary }}
                     >
-                      Lihat Visi, Misi & Program Kerja →
+                      Lihat Visi, Misi & Program →
                     </button>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-[11px] text-slate-400">
                       SMPN 50 Jakarta
                     </span>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* PASLON 02 */}
-          <div
-            className={`relative bg-white rounded-2xl border transition-all duration-300 overflow-hidden shadow-xs ${
-              stats.leaderCandidateId === 2
-                ? 'border-emerald-500 ring-2 ring-emerald-500/20'
-                : 'border-slate-200'
-            }`}
-          >
-            {/* Lead Tag */}
-            {stats.leaderCandidateId === 2 && stats.totalVotes > 0 && (
-              <div className="bg-emerald-600 text-white text-xs font-bold py-1 px-4 flex items-center justify-center gap-1.5 tracking-wide">
-                <Trophy className="w-3.5 h-3.5" />
-                <span>MEMIMPIN SEMENTARA (+{stats.margin} SUARA)</span>
-              </div>
-            )}
-
-            <div className="p-6">
-              <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center">
-                {/* Photo Poster */}
-                <div className="relative w-full sm:w-44 h-56 sm:h-56 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0 shadow-xs">
-                  <img
-                    src={c2.posterImage}
-                    alt="Foto Paslon 02 Rafi H. & Alya N."
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-top"
-                  />
-                  <div className="absolute top-2 left-2 bg-emerald-700 text-white font-extrabold text-sm px-2.5 py-1 rounded-md shadow-xs">
-                    02
-                  </div>
-                </div>
-
-                {/* Candidate Info & Score */}
-                <div className="flex-1 w-full space-y-3">
-                  <div>
-                    <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
-                      Pasangan Calon No. 02
-                    </span>
-                    <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-                      {c2.chairman.name} & {c2.viceChairman.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {c2.chairman.class} & {c2.viceChairman.class}
-                    </p>
-                    <p className="text-xs italic text-slate-600 mt-1.5">
-                      "{c2.tagline}"
-                    </p>
-                  </div>
-
-                  {/* Big Number Progress */}
-                  <div className="bg-emerald-50/70 rounded-xl p-4 border border-emerald-100">
-                    <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="text-3xl sm:text-4xl font-extrabold font-mono tabular-nums text-emerald-900">
-                        {c2Percent}%
-                      </span>
-                      <span className="text-sm font-semibold font-mono tabular-nums text-emerald-800">
-                        {c2Votes.toLocaleString('id-ID')} Suara
-                      </span>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-emerald-200/60 rounded-full h-3 overflow-hidden">
-                      <div
-                        className="bg-emerald-600 h-3 rounded-full transition-all duration-700 ease-out"
-                        style={{ width: `${c2Percent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pt-1 flex items-center justify-between">
-                    <button
-                      onClick={() => onViewCandidateDetails(c2)}
-                      className="text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
-                    >
-                      Lihat Visi, Misi & Program Kerja →
-                    </button>
-                    <span className="text-xs text-slate-400">
-                      SMPN 50 Jakarta
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* Aggregate Visual Balance Bar */}
-      <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-        <div className="flex items-center justify-between mb-3">
+      {/* Aggregate Multi-Segment Visual Balance Bar */}
+      <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-slate-700" />
             <h3 className="font-bold text-slate-900 text-base">
@@ -325,30 +265,44 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
           </div>
         </div>
 
-        {/* Dual Stacked Bar */}
+        {/* Multi-Segment Stacked Bar */}
         <div className="space-y-2">
-          <div className="w-full h-6 bg-slate-100 rounded-lg overflow-hidden flex shadow-inner">
-            <div
-              style={{ width: `${stats.totalVotes > 0 ? c1Percent : 50}%` }}
-              className="bg-blue-600 h-full flex items-center justify-start pl-3 text-white text-xs font-bold font-mono transition-all duration-700"
-            >
-              {c1Percent > 10 && `01 · ${c1Percent}%`}
-            </div>
-            <div
-              style={{ width: `${stats.totalVotes > 0 ? c2Percent : 50}%` }}
-              className="bg-emerald-600 h-full flex items-center justify-end pr-3 text-white text-xs font-bold font-mono transition-all duration-700"
-            >
-              {c2Percent > 10 && `02 · ${c2Percent}%`}
-            </div>
+          <div className="w-full h-7 bg-slate-100 rounded-xl overflow-hidden flex shadow-inner p-0.5 gap-0.5">
+            {candidates.map((c) => {
+              const pct = stats.percentagePerCandidate[c.id] || 0;
+              const votesCount = stats.votesPerCandidate[c.id] || 0;
+
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    width: `${stats.totalVotes > 0 ? pct : 100 / candidates.length}%`,
+                    backgroundColor: c.color.primary
+                  }}
+                  className="h-full flex items-center justify-center text-white text-xs font-bold font-mono transition-all duration-700 rounded-lg overflow-hidden whitespace-nowrap px-1"
+                  title={`Paslon ${c.number}: ${pct}% (${votesCount} suara)`}
+                >
+                  {pct >= 8 && `${c.number} · ${pct}%`}
+                </div>
+              );
+            })}
           </div>
 
-          <div className="flex items-center justify-between text-xs text-slate-500">
-            <span className="text-blue-700 font-semibold">
-              Paslon 01: {c1Votes} Suara ({c1Percent}%)
-            </span>
-            <span className="text-emerald-700 font-semibold">
-              Paslon 02: {c2Votes} Suara ({c2Percent}%)
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs pt-1">
+            {candidates.map((c) => (
+              <div key={c.id} className="flex items-center gap-1.5">
+                <span
+                  className="w-3 h-3 rounded-full inline-block shrink-0"
+                  style={{ backgroundColor: c.color.primary }}
+                />
+                <span className="font-bold text-slate-800">
+                  Paslon {c.number}:
+                </span>
+                <span className="text-slate-600 font-mono">
+                  {stats.votesPerCandidate[c.id] || 0} Suara ({stats.percentagePerCandidate[c.id] || 0}%)
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -361,12 +315,12 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
               Perolehan Suara Berdasarkan Tingkat & Kelas
             </h3>
             <p className="text-xs text-slate-500">
-              Rincian partisipasi suara di masing-masing angkatan SMPN 50 Jakarta
+              Rincian partisipasi suara di masing-masing angkatan SMP Negeri 50 Jakarta
             </p>
           </div>
 
           {/* Interactive filter tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0">
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0 flex-wrap">
             {[
               { id: 'all', label: 'Semua Tingkat' },
               { id: 'Kelas 7', label: 'Kelas 7' },
@@ -394,9 +348,7 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
           {(['Kelas 7', 'Kelas 8', 'Kelas 9', 'Guru & Staf'] as VoterCategory[])
             .filter((cat) => selectedCategory === 'all' || selectedCategory === cat)
             .map((cat) => {
-              const data = stats.byCategory[cat] || { candidate1: 0, candidate2: 0, total: 0 };
-              const p1 = data.total > 0 ? ((data.candidate1 / data.total) * 100).toFixed(1) : '0';
-              const p2 = data.total > 0 ? ((data.candidate2 / data.total) * 100).toFixed(1) : '0';
+              const data = stats.byCategory[cat] || { candidate1: 0, candidate2: 0, total: 0, votesPerCandidate: {} };
 
               return (
                 <div key={cat} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
@@ -406,47 +358,52 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
                   </div>
 
                   <div className="space-y-2">
-                    <div>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-slate-600">Paslon 01</span>
-                        <span className="font-mono font-semibold text-blue-700">{data.candidate1} ({p1}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5">
-                        <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${p1}%` }} />
-                      </div>
-                    </div>
+                    {candidates.map((c) => {
+                      const count = data.votesPerCandidate[c.id] || 0;
+                      const pct = data.total > 0 ? ((count / data.total) * 100).toFixed(1) : '0';
 
-                    <div>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="text-slate-600">Paslon 02</span>
-                        <span className="font-mono font-semibold text-emerald-700">{data.candidate2} ({p2}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-1.5">
-                        <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: `${p2}%` }} />
-                      </div>
-                    </div>
+                      return (
+                        <div key={c.id}>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-slate-600 font-medium">Paslon {c.number}</span>
+                            <span className="font-mono font-semibold" style={{ color: c.color.primary }}>
+                              {count} ({pct}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-1.5">
+                            <div
+                              className="h-1.5 rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%`, backgroundColor: c.color.primary }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
         </div>
 
-        {/* Detailed Class Table */}
+        {/* Detailed Class Table (Dynamic columns for each candidate) */}
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
               <tr>
                 <th className="py-3 px-4">Kelas / Rombel</th>
-                <th className="py-3 px-4 text-center">Suara Paslon 01</th>
-                <th className="py-3 px-4 text-center">Suara Paslon 02</th>
+                {candidates.map((c) => (
+                  <th key={c.id} className="py-3 px-4 text-center">
+                    Suara Paslon {c.number}
+                  </th>
+                ))}
                 <th className="py-3 px-4 text-right">Total Masuk</th>
-                <th className="py-3 px-4 text-center">Kecenderungan</th>
+                <th className="py-3 px-4 text-center">Keunggulan</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {Object.keys(stats.byClass).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                  <td colSpan={3 + candidates.length} className="py-8 text-center text-slate-400">
                     Belum ada data perolehan suara per kelas.
                   </td>
                 </tr>
@@ -454,33 +411,51 @@ export const QuickCountView: React.FC<QuickCountViewProps> = ({ onGoToVoting, on
                 Object.entries(stats.byClass)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([cls, row]) => {
-                    const diff = row.candidate1 - row.candidate2;
-                    let trend = 'Seimbang';
-                    let trendClass = 'text-slate-500';
-                    if (diff > 0) {
-                      trend = `Paslon 01 (+${diff})`;
-                      trendClass = 'text-blue-700 font-semibold';
-                    } else if (diff < 0) {
-                      trend = `Paslon 02 (+${Math.abs(diff)})`;
-                      trendClass = 'text-emerald-700 font-semibold';
-                    }
+                    // Find highest candidate in this class
+                    let maxInClass = -1;
+                    let leadCandId: number | null = null;
+                    let tie = false;
+
+                    candidates.forEach((c) => {
+                      const v = row.votesPerCandidate[c.id] || 0;
+                      if (v > maxInClass) {
+                        maxInClass = v;
+                        leadCandId = c.id;
+                        tie = false;
+                      } else if (v === maxInClass && maxInClass > 0) {
+                        tie = true;
+                      }
+                    });
+
+                    const leaderCand = !tie && maxInClass > 0 ? candidates.find((c) => c.id === leadCandId) : null;
 
                     return (
                       <tr key={cls} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-4 font-semibold text-slate-800">
-                          {cls === 'GURU' ? 'Dewan Guru & Staf' : `Kelas ${cls}`}
+                          {cls === 'GURU' ? 'Dewan Guru' : cls === 'TU' ? 'Tata Usaha' : cls === 'TENDIK' ? 'Tenaga Kependidikan' : `Kelas ${cls}`}
                         </td>
-                        <td className="py-3 px-4 text-center font-mono tabular-nums text-blue-700 font-medium">
-                          {row.candidate1}
-                        </td>
-                        <td className="py-3 px-4 text-center font-mono tabular-nums text-emerald-700 font-medium">
-                          {row.candidate2}
-                        </td>
-                        <td className="py-3 px-4 text-right font-mono tabular-nums font-semibold text-slate-900">
+                        {candidates.map((c) => {
+                          const vCount = row.votesPerCandidate[c.id] || 0;
+                          return (
+                            <td key={c.id} className="py-3 px-4 text-center font-mono tabular-nums font-semibold" style={{ color: c.color.primary }}>
+                              {vCount}
+                            </td>
+                          );
+                        })}
+                        <td className="py-3 px-4 text-right font-mono tabular-nums font-bold text-slate-900">
                           {row.total}
                         </td>
-                        <td className={`py-3 px-4 text-center ${trendClass}`}>
-                          {trend}
+                        <td className="py-3 px-4 text-center">
+                          {leaderCand ? (
+                            <span
+                              className="px-2.5 py-1 rounded-full text-[11px] font-bold inline-block"
+                              style={{ backgroundColor: leaderCand.color.bgSoft || '#eff6ff', color: leaderCand.color.primary }}
+                            >
+                              Paslon {leaderCand.number} ({maxInClass})
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-xs">Seimbang / Kosong</span>
+                          )}
                         </td>
                       </tr>
                     );

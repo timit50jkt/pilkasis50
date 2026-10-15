@@ -105,7 +105,7 @@ function ElectionApp() {
                   Panitia Pemilihan OSIS & Majelis Perwakilan Kelas (MPK)
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  Sistem Quick Count & E-Voting Mandiri · Asas LUBER JURDIL
+                  Sistem Quick Count & E-Voting Mandiri · Terbuka, Transparan & Akurat
                 </div>
               </div>
             </div>
