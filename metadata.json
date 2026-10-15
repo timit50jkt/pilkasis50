@@ -1,0 +1,6 @@
+{
+  "name": "Quick Count & E-Voting OSIS SMPN 50 Jakarta",
+  "description": "Sistem Real-Time Quick Count dan E-Voting Pemilihan Ketua dan Wakil Ketua OSIS SMP Negeri 50 Jakarta dengan otentikasi token unik.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
