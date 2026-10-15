@@ -1,8 +1,8 @@
 import React from 'react';
 import { useElection } from '../context/ElectionContext';
-import { ShieldCheck, Vote, BarChart3, Users, Tv } from 'lucide-react';
+import { ShieldCheck, Vote, BarChart3, Users, Tv, Calendar } from 'lucide-react';
 
-export type ActiveTab = 'quickcount' | 'voting' | 'candidates' | 'projector';
+export type ActiveTab = 'quickcount' | 'voting' | 'candidates' | 'timeline' | 'projector';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -72,6 +72,18 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
             </button>
 
             <button
+              onClick={() => setActiveTab('timeline')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                activeTab === 'timeline'
+                  ? 'bg-amber-50 text-amber-900 font-semibold ring-1 ring-amber-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              <Calendar className="w-4 h-4 text-amber-600" />
+              <span>Timeline</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('projector')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition-colors whitespace-nowrap shrink-0 ${
                 activeTab === 'projector'
@@ -98,10 +110,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
       </div>
 
       {/* Mobile Sub-Navigation Bar */}
-      <div className="md:hidden border-t border-slate-200 px-3 py-2 flex items-center justify-around bg-slate-50">
+      <div className="md:hidden border-t border-slate-200 px-2 py-2 flex items-center justify-around bg-slate-50">
         <button
           onClick={() => setActiveTab('quickcount')}
-          className={`flex flex-col items-center py-1 px-2 text-xs font-medium ${
+          className={`flex flex-col items-center py-1 px-1.5 text-[11px] font-medium ${
             activeTab === 'quickcount' ? 'text-blue-700 font-bold' : 'text-slate-500'
           }`}
         >
@@ -110,7 +122,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
         </button>
         <button
           onClick={() => setActiveTab('voting')}
-          className={`flex flex-col items-center py-1 px-2 text-xs font-medium ${
+          className={`flex flex-col items-center py-1 px-1.5 text-[11px] font-medium ${
             activeTab === 'voting' ? 'text-blue-700 font-bold' : 'text-slate-500'
           }`}
         >
@@ -119,7 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
         </button>
         <button
           onClick={() => setActiveTab('candidates')}
-          className={`flex flex-col items-center py-1 px-2 text-xs font-medium ${
+          className={`flex flex-col items-center py-1 px-1.5 text-[11px] font-medium ${
             activeTab === 'candidates' ? 'text-blue-700 font-bold' : 'text-slate-500'
           }`}
         >
@@ -127,13 +139,22 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenA
           <span>Paslon</span>
         </button>
         <button
+          onClick={() => setActiveTab('timeline')}
+          className={`flex flex-col items-center py-1 px-1.5 text-[11px] font-medium ${
+            activeTab === 'timeline' ? 'text-amber-700 font-bold' : 'text-slate-500'
+          }`}
+        >
+          <Calendar className="w-4 h-4 mb-0.5" />
+          <span>Timeline</span>
+        </button>
+        <button
           onClick={() => setActiveTab('projector')}
-          className={`flex flex-col items-center py-1 px-2 text-xs font-medium ${
+          className={`flex flex-col items-center py-1 px-1.5 text-[11px] font-medium ${
             activeTab === 'projector' ? 'text-blue-700 font-bold' : 'text-slate-500'
           }`}
         >
           <Tv className="w-4 h-4 mb-0.5" />
-          <span>Layar Penuh</span>
+          <span>Proyektor</span>
         </button>
       </div>
     </header>

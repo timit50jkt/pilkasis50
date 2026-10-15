@@ -78,3 +78,15 @@ export interface ElectionSettings {
   tokenPrefix?: string;
   tokenLength?: number;
 }
+
+export type TimelineStatus = 'upcoming' | 'ongoing' | 'completed';
+
+export interface TimelineItem {
+  id: string;
+  dayDate: string; // Hari & Tanggal (contoh: "Senin, 21 Oktober 2024")
+  activity: string; // Kegiatan (contoh: "Pemungutan Suara E-Voting & Quick Count")
+  description: string; // Keterangan (contoh: "Pelaksanaan pemungutan suara di bilik suara digital")
+  status: TimelineStatus; // Status tahapan
+  time?: string; // Waktu pelaksanaan (opsional)
+  location?: string; // Lokasi / Tempat (opsional)
+}

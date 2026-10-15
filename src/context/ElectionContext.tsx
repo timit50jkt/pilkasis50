@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { CandidatePair, ElectionSettings, VoterToken, VoteRecord, AuditLogItem, VoterCategory } from '../types/election';
-import { CANDIDATE_PAIRS, INITIAL_SETTINGS, generateInitialTokensAndVotes } from '../data/initialData';
+import { CandidatePair, ElectionSettings, VoterToken, VoteRecord, AuditLogItem, VoterCategory, TimelineItem } from '../types/election';
+import { CANDIDATE_PAIRS, INITIAL_SETTINGS, generateInitialTokensAndVotes, INITIAL_TIMELINE } from '../data/initialData';
 import { audioManager } from '../utils/audio';
 import { initSupabaseClient, fetchAllFromSupabase, testSupabaseConnection, safeSupabaseOperation } from '../utils/supabase';
 
@@ -48,7 +48,7 @@ export interface ElectionContextType {
   updateVoter: (tokenStr: string, updated: Partial<VoterToken>) => void;
   deleteVoter: (tokenStr: string) => void;
   bulkDeleteVoters: (tokenStrings: string[]) => void;
-  importVoters: (newVoters: VoterToken[]) => void;
+  importVoters: (newVoters: VoterToken[], replaceAll?: boolean) => void;
   generateBatchTokens: (classGroup: string, category: VoterCategory, count: number) => VoterToken[];
   // Simulation & Reset
   simulateVotes: (count: number) => void;
@@ -63,6 +63,13 @@ export interface ElectionContextType {
   connectSupabase: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
   disconnectSupabase: () => void;
   addAuditLog: (action: string, details: string, type?: AuditLogItem['type']) => void;
+  // Timeline Pilkasis Management
+  timeline: TimelineItem[];
+  addTimelineItem: (item: TimelineItem) => void;
+  updateTimelineItem: (id: string, updated: Partial<TimelineItem>) => void;
+  deleteTimelineItem: (id: string) => void;
+  reorderTimeline: (startIndex: number, endIndex: number) => void;
+  resetTimelineToDefault: () => void;
 }
 
 const ElectionContext = createContext<ElectionContextType | undefined>(undefined);
@@ -132,6 +139,16 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     ];
   });
 
+  const [timeline, setTimeline] = useState<TimelineItem[]>(() => {
+    try {
+      const stored = localStorage.getItem(`${STORAGE_KEY}_timeline`);
+      if (stored) return JSON.parse(stored);
+    } catch {
+      // fallback
+    }
+    return INITIAL_TIMELINE;
+  });
+
   const [supabaseConnected, setSupabaseConnected] = useState(false);
   const [lastVoteTime, setLastVoteTime] = useState<string | null>(() => {
     return votes.length > 0 ? votes[votes.length - 1].timestamp : null;
@@ -145,10 +162,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify(votes));
       localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(settings));
       localStorage.setItem(`${STORAGE_KEY}_logs`, JSON.stringify(auditLogs));
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(timeline));
     } catch {
       // ignore
     }
-  }, [candidates, tokens, votes, settings, auditLogs]);
+  }, [candidates, tokens, votes, settings, auditLogs, timeline]);
 
   // Attempt to load Supabase if configured in env or settings
   useEffect(() => {
@@ -624,29 +642,44 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   const importVoters = useCallback(
-    (newVoters: VoterToken[]) => {
+    (newVoters: VoterToken[], replaceAll: boolean = false) => {
       setTokens((prev) => {
-        // Dedup by token
-        const existingTokens = new Set(prev.map((t) => t.token));
-        const filteredNew = newVoters.filter((nv) => !existingTokens.has(nv.token));
-        const next = [...prev, ...filteredNew];
+        let next: VoterToken[];
+        if (replaceAll) {
+          next = newVoters;
+          addAuditLog('DPT Disinkronkan Penuh', `Seluruh DPT disinkronkan dengan ${newVoters.length} pemilih baru dari file/tabel.`, 'token');
+        } else {
+          // Dedup by token
+          const existingTokens = new Set(prev.map((t) => t.token));
+          const filteredNew = newVoters.filter((nv) => !existingTokens.has(nv.token));
+          next = [...prev, ...filteredNew];
+          addAuditLog('Import DPT Berhasil', `Berhasil menambahkan ${filteredNew.length} pemilih baru ke DPT.`, 'token');
+        }
 
-        addAuditLog('Import DPT Berhasil', `Berhasil menambahkan ${filteredNew.length} pemilih baru ke DPT.`, 'token');
+        // Also update totalRegisteredVoters in settings so quick count calculation is immediately synced!
+        setSettings((prevSettings) => ({
+          ...prevSettings,
+          totalRegisteredVoters: Math.max(prevSettings.totalRegisteredVoters, next.length)
+        }));
+
         broadcastUpdate(candidates, next, votes, settings, auditLogs);
 
         const client = initSupabaseClient();
-        if (client && filteredNew.length > 0) {
-          const rows = filteredNew.map((nv) => ({
-            token: nv.token,
-            voter_name: nv.voterName,
-            class_group: nv.classGroup,
-            category: nv.category,
-            is_used: false,
-            created_at: new Date().toISOString()
-          }));
-          safeSupabaseOperation(
-            client.from('voters').upsert(rows)
-          );
+        if (client) {
+          if (replaceAll) {
+            safeSupabaseOperation(client.from('voters').delete().neq('token', 'placeholder'));
+          }
+          if (next.length > 0) {
+            const rows = (replaceAll ? next : newVoters).map((nv) => ({
+              token: nv.token,
+              voter_name: nv.voterName,
+              class_group: nv.classGroup,
+              category: nv.category,
+              is_used: nv.isUsed || false,
+              created_at: new Date().toISOString()
+            }));
+            safeSupabaseOperation(client.from('voters').upsert(rows));
+          }
         }
 
         return next;
@@ -705,7 +738,6 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     (count: number) => {
       const unusedTokens = tokens.filter((t) => !t.isUsed);
       if (unusedTokens.length === 0) {
-        alert('Semua token yang ada saat ini sudah digunakan!');
         return;
       }
 
@@ -807,6 +839,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setTokens(initTokens);
     setVotes(initVotes);
     setSettings(INITIAL_SETTINGS);
+    setTimeline(INITIAL_TIMELINE);
     setAuditLogs([logItem]);
     setLastVoteTime(new Date().toISOString());
 
@@ -981,6 +1014,36 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSettings((prev) => ({ ...prev, useSupabase: false, supabaseUrl: '', supabaseAnonKey: '' }));
   }, []);
 
+  // Timeline Management
+  const addTimelineItem = useCallback((item: TimelineItem) => {
+    setTimeline((prev) => [...prev, item]);
+    addAuditLog('Agenda Pilkasis Ditambahkan', `Kegiatan "${item.activity}" pada ${item.dayDate} ditambahkan.`, 'config');
+  }, [addAuditLog]);
+
+  const updateTimelineItem = useCallback((id: string, updated: Partial<TimelineItem>) => {
+    setTimeline((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
+    addAuditLog('Agenda Pilkasis Diperbarui', `Kegiatan timeline ID ${id} berhasil diperbarui.`, 'config');
+  }, [addAuditLog]);
+
+  const deleteTimelineItem = useCallback((id: string) => {
+    setTimeline((prev) => prev.filter((item) => item.id !== id));
+    addAuditLog('Agenda Pilkasis Dihapus', `Tahapan timeline ID ${id} dihapus.`, 'config');
+  }, [addAuditLog]);
+
+  const reorderTimeline = useCallback((startIndex: number, endIndex: number) => {
+    setTimeline((prev) => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+  }, []);
+
+  const resetTimelineToDefault = useCallback(() => {
+    setTimeline(INITIAL_TIMELINE);
+    addAuditLog('Agenda Pilkasis Direset', 'Timeline proses Pilkasis dipulihkan ke data standar bawaan.', 'config');
+  }, [addAuditLog]);
+
   // Compute stats
   const stats = useMemo<ElectionStats>(() => {
     const totalVotes = votes.length;
@@ -1105,7 +1168,13 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateAdminPassword,
         connectSupabase,
         disconnectSupabase,
-        addAuditLog
+        addAuditLog,
+        timeline,
+        addTimelineItem,
+        updateTimelineItem,
+        deleteTimelineItem,
+        reorderTimeline,
+        resetTimelineToDefault
       }}
     >
       {children}

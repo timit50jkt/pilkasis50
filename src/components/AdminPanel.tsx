@@ -1,7 +1,9 @@
 import React, { useState, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { useElection } from '../context/ElectionContext';
-import { CandidatePair, VoterToken, VoterCategory } from '../types/election';
+import { CandidatePair, VoterToken, VoterCategory, TimelineItem, TimelineStatus } from '../types/election';
 import { PrintTokenModal } from './PrintTokenModal';
+import { TableImportModal } from './TableImportModal';
 import {
   ShieldCheck,
   Lock,
@@ -31,8 +33,24 @@ import {
   AlertCircle,
   FileText,
   KeyRound,
-  RotateCcw
+  RotateCcw,
+  RotateCw,
+  Sliders,
+  Table,
+  Calendar,
+  Clock,
+  MapPin,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
+
+export interface TableImportRow {
+  id: string;
+  name: string;
+  classGroup: string;
+  category: VoterCategory;
+  token: string;
+}
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -66,7 +84,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     validateAdminPassword,
     updateAdminPassword,
     connectSupabase,
-    disconnectSupabase
+    disconnectSupabase,
+    timeline,
+    addTimelineItem,
+    updateTimelineItem,
+    deleteTimelineItem,
+    reorderTimeline,
+    resetTimelineToDefault
   } = useElection();
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -75,7 +99,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [pinError, setPinError] = useState<string | null>(null);
 
   // Tabs
-  const [adminTab, setAdminTab] = useState<'paslon' | 'voters' | 'school' | 'control' | 'supabase'>('paslon');
+  const [adminTab, setAdminTab] = useState<'paslon' | 'voters' | 'timeline' | 'school' | 'control' | 'supabase'>('paslon');
 
   // Candidate editor state
   const [editingCandidateId, setEditingCandidateId] = useState<number>(candidates[0]?.id || 1);
@@ -120,13 +144,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [importText, setImportText] = useState('');
 
   // Interactive Table-based import state (Excel/Table paste mode)
-  interface TableImportRow {
-    id: string;
-    name: string;
-    classGroup: string;
-    category: VoterCategory;
-    token: string;
-  }
   const [tableRows, setTableRows] = useState<TableImportRow[]>([]);
   const [pasteBoxText, setPasteBoxText] = useState('');
   const [showPasteBox, setShowPasteBox] = useState(false);
@@ -154,6 +171,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     tokenLength: settings.tokenLength || 6
   });
   const [schoolSaveMsg, setSchoolSaveMsg] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((current) => (current === msg ? null : current));
+    }, 4500);
+  };
 
   // Password change state
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
@@ -174,6 +199,82 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const newCandPhotoRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Timeline Admin State
+  const [showTimelineModal, setShowTimelineModal] = useState(false);
+  const [editingTimelineId, setEditingTimelineId] = useState<string | null>(null);
+  const [timelineDayDate, setTimelineDayDate] = useState('');
+  const [timelineActivity, setTimelineActivity] = useState('');
+  const [timelineDescription, setTimelineDescription] = useState('');
+  const [timelineStatus, setTimelineStatus] = useState<TimelineStatus>('upcoming');
+  const [timelineTime, setTimelineTime] = useState('');
+  const [timelineLocation, setTimelineLocation] = useState('');
+
+  const handleOpenAddTimeline = () => {
+    setEditingTimelineId(null);
+    setTimelineDayDate('');
+    setTimelineActivity('');
+    setTimelineDescription('');
+    setTimelineStatus('upcoming');
+    setTimelineTime('');
+    setTimelineLocation('');
+    setShowTimelineModal(true);
+  };
+
+  const handleOpenEditTimeline = (item: TimelineItem) => {
+    setEditingTimelineId(item.id);
+    setTimelineDayDate(item.dayDate);
+    setTimelineActivity(item.activity);
+    setTimelineDescription(item.description);
+    setTimelineStatus(item.status);
+    setTimelineTime(item.time || '');
+    setTimelineLocation(item.location || '');
+    setShowTimelineModal(true);
+  };
+
+  const handleSaveTimelineItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!timelineDayDate.trim() || !timelineActivity.trim() || !timelineDescription.trim()) {
+      showToast('Hari tanggal, Kegiatan, dan Keterangan wajib diisi.');
+      return;
+    }
+
+    if (editingTimelineId) {
+      updateTimelineItem(editingTimelineId, {
+        dayDate: timelineDayDate.trim(),
+        activity: timelineActivity.trim(),
+        description: timelineDescription.trim(),
+        status: timelineStatus,
+        time: timelineTime.trim() || undefined,
+        location: timelineLocation.trim() || undefined
+      });
+      showToast(`✓ Tahapan "${timelineActivity.trim()}" berhasil diperbarui.`);
+    } else {
+      const newItem: TimelineItem = {
+        id: `timeline-${Date.now()}`,
+        dayDate: timelineDayDate.trim(),
+        activity: timelineActivity.trim(),
+        description: timelineDescription.trim(),
+        status: timelineStatus,
+        time: timelineTime.trim() || undefined,
+        location: timelineLocation.trim() || undefined
+      };
+      addTimelineItem(newItem);
+      showToast(`✓ Tahapan "${timelineActivity.trim()}" berhasil ditambahkan.`);
+    }
+
+    setShowTimelineModal(false);
+  };
+
+  const handleDeleteTimeline = (item: TimelineItem) => {
+    deleteTimelineItem(item.id);
+    showToast(`✓ Tahapan "${item.activity}" berhasil dihapus.`);
+  };
+
+  const handleMoveTimeline = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= timeline.length) return;
+    reorderTimeline(fromIndex, toIndex);
+  };
 
   if (!isOpen) return null;
 
@@ -259,7 +360,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran foto maksimal 2MB.');
+      showToast('Ukuran foto maksimal 2MB.');
       return;
     }
 
@@ -282,7 +383,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('Ukuran logo maksimal 2MB.');
+      showToast('Ukuran logo maksimal 2MB.');
       return;
     }
 
@@ -367,16 +468,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   // Handle Delete Candidate
   const handleDeleteCurrentCandidate = () => {
     if (candidates.length <= 1) {
-      alert('Minimal harus ada 1 pasangan calon untuk pemilihan OSIS.');
+      showToast('Minimal harus ada 1 pasangan calon untuk pemilihan OSIS.');
       return;
     }
-    if (confirm(`Apakah Anda yakin ingin menghapus Paslon No. ${activeEditingCandidate?.number} (${activeEditingCandidate?.chairman.name})?`)) {
-      deleteCandidate(editingCandidateId);
-      const remaining = candidates.filter((c) => c.id !== editingCandidateId);
-      if (remaining.length > 0) {
-        setEditingCandidateId(remaining[0].id);
-      }
+    const targetNum = activeEditingCandidate?.number;
+    deleteCandidate(editingCandidateId);
+    const remaining = candidates.filter((c) => c.id !== editingCandidateId);
+    if (remaining.length > 0) {
+      setEditingCandidateId(remaining[0].id);
     }
+    showToast(`✓ Paslon No. ${targetNum} berhasil dihapus.`);
   };
 
   // Handle Save School Settings
@@ -388,9 +489,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       academicYear: schoolForm.academicYear,
       electionName: schoolForm.electionName,
       logoUrl: schoolForm.logoUrl,
-      announcementText: schoolForm.announcementText
+      announcementText: schoolForm.announcementText,
+      quickCountTitle: schoolForm.quickCountTitle,
+      quickCountSubtitle: schoolForm.quickCountSubtitle,
+      votingTitle: schoolForm.votingTitle,
+      votingSubtitle: schoolForm.votingSubtitle,
+      tokenPrefix: schoolForm.tokenPrefix,
+      tokenLength: Number(schoolForm.tokenLength) || 4
     });
-    setSchoolSaveMsg('Informasi sekolah dan logo berhasil diperbarui!');
+    setSchoolSaveMsg('Pengaturan sekolah, judul tampilan, dan format token berhasil disimpan!');
     setTimeout(() => setSchoolSaveMsg(null), 3000);
   };
 
@@ -447,7 +554,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const handleAddSingleVoter = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanClass = newVoterClass.trim().toUpperCase() || 'UMUM';
-    const cleanToken = newVoterToken.trim().toUpperCase() || `SMP50-${cleanClass}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const pfx = settings.tokenPrefix || 'SMP50-';
+    const cleanToken =
+      newVoterToken.trim().toUpperCase() ||
+      `${pfx}${cleanClass}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    if (tokens.some((t) => t.token === cleanToken)) {
+      showToast(`Token "${cleanToken}" sudah terdaftar di DPT. Gunakan token unik.`);
+      return;
+    }
 
     addVoter({
       token: cleanToken,
@@ -462,30 +577,120 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     setShowAddVoterModal(false);
   };
 
-  // Download Sample CSV Template
+  // Download TRUE Microsoft Excel (.xlsx) Template with separate columns
+  const handleDownloadExcelTemplate = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const rows = [
+        ['Nama Lengkap', 'Kelas/Unit', 'Jenis DPT'],
+        ['Ahmad Fauzan Pratama', '7A', 'Siswa'],
+        ['Bunga Lestari Putri', '7B', 'Siswa'],
+        ['Cahya Adiguna', '8A', 'Siswa'],
+        ['Dewi Anggraeni', '8C', 'Siswa'],
+        ['Eko Wahyudi', '9A', 'Siswa'],
+        ['Fitri Handayani', '9B', 'Siswa'],
+        ['Drs. Bambang Wijaya M.Pd', 'GURU', 'Guru'],
+        ['Siti Nurhaliza S.Pd', 'GURU', 'Guru'],
+        ['Rahmat Hidayat S.E', 'TU', 'Tata Usaha'],
+        ['Joko Susilo', 'TENDIK', 'Tendik']
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{ wch: 32 }, { wch: 16 }, { wch: 16 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'Template_DPT');
+      XLSX.writeFile(wb, 'Template_DPT_SMPN50.xlsx');
+      showToast('✓ Berhasil mengunduh Template_DPT_SMPN50.xlsx (Kolom A: Nama Lengkap, B: Kelas/Unit, C: Jenis DPT terpisah).');
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal membuat file Excel.');
+    }
+  };
+
+  // Download Sample CSV Template with Excel compatibility (sep=; and UTF-8 BOM)
   const handleDownloadCsvTemplate = () => {
     const csvContent =
-      'Nama Lengkap,Kelas,Jenis Pemilih\n' +
-      'Ahmad Fauzan,7A,Siswa\n' +
-      'Bunga Lestari,7A,Siswa\n' +
-      'Cahya Pratama,8B,Siswa\n' +
-      'Dewi Anggraeni,9C,Siswa\n' +
-      'Drs. Bambang Wijaya,Guru,Guru\n' +
-      'Siti Nurhaliza S.Pd,Guru,Guru\n' +
-      'Rahmat Hidayat,TU,Tata Usaha\n' +
-      'Joko Susilo,Tendik,Tendik\n';
+      '\uFEFFsep=;\r\n' +
+      'Nama Lengkap;Kelas/Unit;Jenis DPT\r\n' +
+      'Ahmad Fauzan Pratama;7A;Siswa\r\n' +
+      'Bunga Lestari Putri;7B;Siswa\r\n' +
+      'Cahya Adiguna;8A;Siswa\r\n' +
+      'Dewi Anggraeni;8C;Siswa\r\n' +
+      'Eko Wahyudi;9A;Siswa\r\n' +
+      'Fitri Handayani;9B;Siswa\r\n' +
+      'Drs. Bambang Wijaya M.Pd;GURU;Guru\r\n' +
+      'Siti Nurhaliza S.Pd;GURU;Guru\r\n' +
+      'Rahmat Hidayat S.E;TU;Tata Usaha\r\n' +
+      'Joko Susilo;TENDIK;Tendik\r\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Template_DPT_Pemilihan_SMPN50.csv';
+    link.download = 'Template_DPT_SMPN50.csv';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('✓ Template CSV (Nama Lengkap, Kelas/Unit, Jenis DPT) berhasil diunduh.');
   };
 
-  // Handle CSV File Upload Parsing
+  // Token Generator for Table Rows
+  const makeToken = (classGroup: string, prefixVal?: string) => {
+    const pfx = prefixVal !== undefined ? prefixVal : (tableTokenPrefix || settings.tokenPrefix || 'SMP50-');
+    const cleanClass = (classGroup || 'VOTE').replace(/[^A-Z0-9]/g, '') || 'VOTE';
+    const num = Math.floor(1000 + Math.random() * 9000);
+    return `${pfx}${cleanClass}-${num}`;
+  };
+
+  // Convert raw text (CSV or Tab-separated from Excel/Sheets) into Table rows
+  const parseRawTextToRows = (raw: string, currentPrefix?: string): TableImportRow[] => {
+    const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return [];
+
+    const firstLineLower = lines[0].toLowerCase();
+    const hasHeader =
+      firstLineLower.includes('nama') ||
+      firstLineLower.includes('kelas') ||
+      firstLineLower.includes('jenis') ||
+      firstLineLower.includes('token');
+
+    const dataLines = hasHeader ? lines.slice(1) : lines;
+    const generated: TableImportRow[] = [];
+
+    dataLines.forEach((line, idx) => {
+      const parts = line.split(/[\t,;]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
+      if (parts.length === 0 || !parts[0]) return;
+
+      const name = parts[0];
+      const classGroup = (parts[1] || '7A').toUpperCase();
+      const rawCategory = (parts[2] || '').toLowerCase();
+      const customToken = parts[3] ? parts[3].toUpperCase() : '';
+
+      let category: VoterCategory = 'Siswa';
+      if (rawCategory.includes('guru')) {
+        category = 'Guru';
+      } else if (rawCategory.includes('tata usaha') || rawCategory.includes('tu')) {
+        category = 'Tata Usaha';
+      } else if (rawCategory.includes('tendik') || rawCategory.includes('kependidikan') || rawCategory.includes('staf')) {
+        category = 'Tendik';
+      } else {
+        category = 'Siswa';
+      }
+
+      const token = customToken || makeToken(classGroup, currentPrefix);
+
+      generated.push({
+        id: `row-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+        name,
+        classGroup,
+        category,
+        token
+      });
+    });
+
+    return generated;
+  };
+
+  // Handle CSV / File Upload to Table
   const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -494,79 +699,119 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (content) {
-        setImportText(content);
+        const rows = parseRawTextToRows(content, tableTokenPrefix);
+        if (rows.length > 0) {
+          setTableRows((prev) => [...prev, ...rows]);
+          showToast(`✓ Berhasil memuat ${rows.length} baris ke dalam tabel!`);
+        } else {
+          showToast('Tidak ditemukan baris data yang valid dari file ini.');
+        }
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
-  // Parse and Process CSV / Text
-  const handleProcessCsvImport = () => {
-    const lines = importText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    if (lines.length === 0) return;
-
-    const newVoters: VoterToken[] = [];
-
-    // Check if first line is header
-    const firstLineLower = lines[0].toLowerCase();
-    const hasHeader =
-      firstLineLower.includes('nama') ||
-      firstLineLower.includes('kelas') ||
-      firstLineLower.includes('jenis');
-
-    const dataLines = hasHeader ? lines.slice(1) : lines;
-
-    dataLines.forEach((line) => {
-      // Split by comma, semicolon, or tab
-      const parts = line.split(/[,;\t]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
-      if (parts.length === 0 || !parts[0]) return;
-
-      const name = parts[0];
-      const classGroup = (parts[1] || 'UMUM').toUpperCase();
-      let rawCategory = (parts[2] || '').trim();
-
-      // Normalize Category: Siswa, Guru, Tata Usaha, Tendik
-      let category: VoterCategory = 'Siswa';
-      const catLower = rawCategory.toLowerCase();
-
-      if (catLower.includes('guru')) {
-        category = 'Guru';
-      } else if (catLower.includes('tata usaha') || catLower.includes('tu')) {
-        category = 'Tata Usaha';
-      } else if (catLower.includes('tendik') || catLower.includes('kependidikan') || catLower.includes('staf')) {
-        category = 'Tendik';
-      } else {
-        category = 'Siswa';
-      }
-
-      const randomCode = Math.floor(1000 + Math.random() * 9000);
-      const cleanClassTag = classGroup.replace(/[^A-Z0-9]/g, '');
-      const token = `SMP50-${cleanClassTag || 'VOTE'}-${randomCode}`;
-
-      newVoters.push({
-        token,
-        voterName: name,
-        classGroup,
-        category,
-        isUsed: false
-      });
-    });
-
-    if (newVoters.length > 0) {
-      importVoters(newVoters);
-      setImportText('');
-      setShowImportModal(false);
-      alert(`Berhasil mengimpor ${newVoters.length} pemilih ke dalam DPT.`);
+  // Process text pasted from Excel / Spreadsheet
+  const handleProcessPastedExcel = () => {
+    if (!pasteBoxText.trim()) return;
+    const rows = parseRawTextToRows(pasteBoxText, tableTokenPrefix);
+    if (rows.length > 0) {
+      setTableRows((prev) => [...prev, ...rows]);
+      setPasteBoxText('');
+      setShowPasteBox(false);
+      showToast(`✓ Berhasil menambahkan ${rows.length} baris dari Excel ke dalam tabel.`);
     } else {
-      alert('Tidak ditemukan data pemilih yang valid untuk diimpor. Periksa format CSV Anda.');
+      showToast('Format data tidak sesuai. Pastikan Anda menyalin kolom: Nama | Kelas | Jenis');
     }
+  };
+
+  // Add Blank Row
+  const handleAddBlankTableRow = () => {
+    const newRow: TableImportRow = {
+      id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: '',
+      classGroup: '7A',
+      category: 'Siswa',
+      token: makeToken('7A', tableTokenPrefix)
+    };
+    setTableRows((prev) => [...prev, newRow]);
+  };
+
+  // Add 5 Blank Rows
+  const handleAdd5BlankTableRows = () => {
+    const rows: TableImportRow[] = Array.from({ length: 5 }, (_, i) => ({
+      id: `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+      name: '',
+      classGroup: '7A',
+      category: 'Siswa',
+      token: makeToken('7A', tableTokenPrefix)
+    }));
+    setTableRows((prev) => [...prev, ...rows]);
+  };
+
+  // Regenerate all tokens in Table
+  const handleRegenerateAllTokens = () => {
+    if (tableRows.length === 0) return;
+    setTableRows((prev) =>
+      prev.map((r) => ({
+        ...r,
+        token: makeToken(r.classGroup, tableTokenPrefix)
+      }))
+    );
+  };
+
+  // Save Table to DPT
+  const handleSaveTableToDpt = () => {
+    if (tableRows.length === 0) {
+      showToast('Tabel masih kosong. Tambahkan atau tempel data pemilih terlebih dahulu.');
+      return;
+    }
+
+    // Check empty names or tokens
+    const emptyNameIdx = tableRows.findIndex((r) => !r.name.trim());
+    if (emptyNameIdx !== -1) {
+      showToast(`Baris ke-${emptyNameIdx + 1} belum memiliki nama pemilih.`);
+      return;
+    }
+
+    const emptyTokenIdx = tableRows.findIndex((r) => !r.token.trim());
+    if (emptyTokenIdx !== -1) {
+      showToast(`Baris ke-${emptyTokenIdx + 1} belum memiliki token. Silakan isi atau klik tombol acak token.`);
+      return;
+    }
+
+    // Check duplicate tokens in table
+    const tokenSet = new Set<string>();
+    for (let i = 0; i < tableRows.length; i++) {
+      const tok = tableRows[i].token.trim().toUpperCase();
+      if (tokenSet.has(tok)) {
+        showToast(`Terdapat token duplikat dalam tabel: "${tok}" pada baris ke-${i + 1}. Setiap pemilih wajib memiliki token unik.`);
+        return;
+      }
+      tokenSet.add(tok);
+    }
+
+    // Convert to VoterToken[]
+    const newVoters: VoterToken[] = tableRows.map((r) => ({
+      token: r.token.trim().toUpperCase(),
+      voterName: r.name.trim(),
+      classGroup: (r.classGroup || 'UMUM').trim().toUpperCase(),
+      category: r.category,
+      isUsed: false
+    }));
+
+    importVoters(newVoters);
+    setTableRows([]);
+    setShowImportModal(false);
+    showToast(`✓ Sukses! ${newVoters.length} pemilih berhasil disinkronkan ke dalam DPT.`);
   };
 
   // Copy Unused Tokens
   const handleCopyUnusedTokens = () => {
     const unusedList = tokens.filter((t) => !t.isUsed).map((t) => `${t.token} (${t.voterName || t.classGroup})`).join('\n');
     navigator.clipboard.writeText(unusedList);
-    alert('Berhasil menyalin seluruh token belum dipakai ke papan klip!');
+    showToast('✓ Berhasil menyalin seluruh token belum dipakai ke papan klip!');
   };
 
   // Download SQL Schema
@@ -670,6 +915,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           >
             <Users className="w-4 h-4" />
             <span>Data Pemilih & DPT ({tokens.length})</span>
+          </button>
+
+          <button
+            onClick={() => setAdminTab('timeline')}
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors whitespace-nowrap ${
+              adminTab === 'timeline'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Timeline Pilkasis ({timeline.length})</span>
           </button>
 
           <button
@@ -1037,8 +1294,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   onClick={() => setShowImportModal(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-xs"
                 >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Import CSV Data Pemilih</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Input & Import Tabel (Excel/CSV)</span>
+                </button>
+                <button
+                  onClick={handleDownloadExcelTemplate}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-300 shadow-2xs transition-colors"
+                  title="Unduh file Microsoft Excel resmi (.xlsx) dengan Kolom A, B, C terpisah"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Unduh Template Excel (.xlsx)</span>
                 </button>
                 <button
                   onClick={handleDownloadCsvTemplate}
@@ -1060,10 +1325,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                 {selectedVoterTokens.length > 0 && (
                   <button
                     onClick={() => {
-                      if (confirm(`Hapus ${selectedVoterTokens.length} pemilih yang dipilih?`)) {
-                        bulkDeleteVoters(selectedVoterTokens);
-                        setSelectedVoterTokens([]);
-                      }
+                      const count = selectedVoterTokens.length;
+                      bulkDeleteVoters(selectedVoterTokens);
+                      setSelectedVoterTokens([]);
+                      showToast(`✓ Berhasil menghapus ${count} pemilih.`);
                     }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold"
                   >
@@ -1137,7 +1402,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                         }}
                       />
                     </th>
-                    <th className="py-2.5 px-3">Kode Token</th>
+                    <th className="py-2.5 px-3">Token</th>
                     <th className="py-2.5 px-3">Nama Lengkap</th>
                     <th className="py-2.5 px-3">Kelas / Unit</th>
                     <th className="py-2.5 px-3">Jenis Pemilih</th>
@@ -1197,17 +1462,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                           <td className="py-2 px-3 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <button
-                                onClick={() => setEditingVoter(t)}
-                                title="Edit Pemilih"
+                                onClick={() => {
+                                  setEditingVoter({ ...t });
+                                  setOriginalEditingToken(t.token);
+                                }}
+                                title="Edit Pemilih & Token"
                                 className="p-1 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => {
-                                  if (confirm(`Hapus pemilih ${t.voterName || t.token}?`)) {
-                                    deleteVoter(t.token);
-                                  }
+                                  deleteVoter(t.token);
+                                  showToast(`✓ Pemilih ${t.voterName || t.token} berhasil dihapus.`);
                                 }}
                                 title="Hapus Pemilih"
                                 className="p-1 hover:bg-slate-100 text-slate-500 hover:text-rose-600 rounded"
@@ -1228,6 +1495,196 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               <span>Menampilkan {filteredTokens.length} dari {tokens.length} pemilih</span>
               <span>
                 {tokens.filter((t) => t.isUsed).length} Sudah Coblos · {tokens.filter((t) => !t.isUsed).length} Belum Coblos
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: TIMELINE & AGENDA PILKASIS */}
+        {adminTab === 'timeline' && (
+          <div className="space-y-6 overflow-y-auto pr-1 flex-1">
+            {/* Top Action Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Kelola Timeline & Tahapan Proses Pilkasis
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Atur Hari & Tanggal, Nama Kegiatan, Keterangan, Waktu/Tempat, serta Status tahapan (Selesai, Sedang Berlangsung, Akan Datang).
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetTimelineToDefault();
+                    showToast('✓ Jadwal agenda Pilkasis berhasil dipulihkan ke standar default bawaan.');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors shadow-xs"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Pulihkan Standar</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleOpenAddTimeline}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah Tahapan Baru</span>
+                </button>
+              </div>
+            </div>
+
+            {/* List / Table of Timeline Items */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3 w-20 text-center">Urutan</th>
+                      <th className="py-2.5 px-3 w-48">Hari & Tanggal</th>
+                      <th className="py-2.5 px-3 w-56">Kegiatan</th>
+                      <th className="py-2.5 px-3">Keterangan</th>
+                      <th className="py-2.5 px-3 w-40 text-center">Status Tahap</th>
+                      <th className="py-2.5 px-3 w-24 text-center">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {timeline.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-400">
+                          Belum ada agenda tahapan. Klik "Tambah Tahapan Baru" atau "Pulihkan Standar".
+                        </td>
+                      </tr>
+                    ) : (
+                      timeline.map((item, index) => {
+                        return (
+                          <tr
+                            key={item.id}
+                            className={`hover:bg-slate-50/80 transition-colors ${
+                              item.status === 'ongoing' ? 'bg-blue-50/30' : ''
+                            }`}
+                          >
+                            {/* Reorder Buttons */}
+                            <td className="py-3 px-2 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <button
+                                  type="button"
+                                  disabled={index === 0}
+                                  onClick={() => handleMoveTimeline(index, index - 1)}
+                                  className="p-1 hover:bg-slate-200 disabled:opacity-30 rounded text-slate-600"
+                                  title="Geser Naik"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <span className="font-bold text-slate-700 tabular-nums w-4 text-center">
+                                  {index + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={index === timeline.length - 1}
+                                  onClick={() => handleMoveTimeline(index, index + 1)}
+                                  className="p-1 hover:bg-slate-200 disabled:opacity-30 rounded text-slate-600"
+                                  title="Geser Turun"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Hari & Tanggal */}
+                            <td className="py-3 px-3 font-semibold text-slate-900">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span>{item.dayDate}</span>
+                              </div>
+                              {item.time && (
+                                <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 font-normal">
+                                  <Clock className="w-3 h-3 text-slate-400" />
+                                  <span>{item.time}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Kegiatan */}
+                            <td className="py-3 px-3 font-bold text-slate-900">
+                              {item.activity}
+                              {item.location && (
+                                <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1 font-normal">
+                                  <MapPin className="w-3 h-3 text-slate-400" />
+                                  <span>{item.location}</span>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Keterangan */}
+                            <td className="py-3 px-3 text-slate-600 leading-relaxed max-w-md">
+                              {item.description}
+                            </td>
+
+                            {/* Status Selector */}
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
+                              <select
+                                value={item.status}
+                                onChange={(e) => {
+                                  const newStatus = e.target.value as TimelineStatus;
+                                  updateTimelineItem(item.id, { status: newStatus });
+                                  showToast(`✓ Status "${item.activity}" diubah menjadi ${newStatus === 'completed' ? 'Selesai' : newStatus === 'ongoing' ? 'Sedang Berlangsung' : 'Akan Datang'}.`);
+                                }}
+                                className={`text-xs font-semibold rounded-lg px-2 py-1 border transition-colors ${
+                                  item.status === 'completed'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : item.status === 'ongoing'
+                                    ? 'bg-blue-50 text-blue-800 border-blue-300 font-bold'
+                                    : 'bg-slate-100 text-slate-700 border-slate-300'
+                                }`}
+                              >
+                                <option value="upcoming">Akan Datang</option>
+                                <option value="ongoing">Sedang Berlangsung</option>
+                                <option value="completed">Selesai</option>
+                              </select>
+                            </td>
+
+                            {/* Action Buttons */}
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditTimeline(item)}
+                                  className="p-1.5 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg transition-colors border border-transparent hover:border-blue-200"
+                                  title="Edit Tahapan"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteTimeline(item)}
+                                  className="p-1.5 hover:bg-rose-50 text-slate-600 hover:text-rose-700 rounded-lg transition-colors border border-transparent hover:border-rose-200"
+                                  title="Hapus Tahapan"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-500 flex justify-between shrink-0">
+              <span>Menampilkan {timeline.length} tahapan agenda Pilkasis</span>
+              <span>
+                {timeline.filter((t) => t.status === 'completed').length} Selesai · {timeline.filter((t) => t.status === 'ongoing').length} Berlangsung · {timeline.filter((t) => t.status === 'upcoming').length} Akan Datang
               </span>
             </div>
           </div>
@@ -1348,6 +1805,133 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                       required
                     />
                   </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Teks Pengumuman Berjalan (Marquee)
+                    </label>
+                    <input
+                      type="text"
+                      value={schoolForm.announcementText}
+                      onChange={(e) => setSchoolForm({ ...schoolForm, announcementText: e.target.value })}
+                      placeholder="Contoh: Pemungutan suara berlangsung hingga pukul 14:00 WIB..."
+                      className="w-full p-2.5 text-xs border rounded-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Customizable Page Titles & Subtitles */}
+                <div className="pt-4 border-t border-slate-200 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-blue-600" />
+                    <h4 className="text-xs font-bold text-slate-900 uppercase">
+                      Kustomisasi Judul Tampilan (Bisa Diatur Penuh Oleh Admin)
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Ubah judul dan keterangan yang tampil di layar Quick Count maupun Bilik Suara agar sesuai dengan kebutuhan panitia.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-100 space-y-3 sm:col-span-2">
+                      <span className="text-xs font-bold text-blue-900 block">
+                        Pengaturan Tampilan Quick Count:
+                      </span>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Judul Utama Quick Count
+                        </label>
+                        <input
+                          type="text"
+                          value={schoolForm.quickCountTitle}
+                          onChange={(e) => setSchoolForm({ ...schoolForm, quickCountTitle: e.target.value })}
+                          placeholder="Quick Count Perhitungan Suara Pemilihan OSIS"
+                          className="w-full p-2.5 text-xs border rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Subjudul / Keterangan Quick Count
+                        </label>
+                        <input
+                          type="text"
+                          value={schoolForm.quickCountSubtitle}
+                          onChange={(e) => setSchoolForm({ ...schoolForm, quickCountSubtitle: e.target.value })}
+                          placeholder="Pantau perolehan suara resmi secara real-time, transparan, dan akurat."
+                          className="w-full p-2.5 text-xs border rounded-lg bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-emerald-50/50 rounded-xl border border-emerald-100 space-y-3 sm:col-span-2">
+                      <span className="text-xs font-bold text-emerald-900 block">
+                        Pengaturan Tampilan Bilik Suara (Voting):
+                      </span>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Judul Halaman Bilik Suara
+                        </label>
+                        <input
+                          type="text"
+                          value={schoolForm.votingTitle}
+                          onChange={(e) => setSchoolForm({ ...schoolForm, votingTitle: e.target.value })}
+                          placeholder="Masuk dengan Token Pemilihan"
+                          className="w-full p-2.5 text-xs border rounded-lg bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-700 mb-1">
+                          Subjudul / Petunjuk Bilik Suara
+                        </label>
+                        <input
+                          type="text"
+                          value={schoolForm.votingSubtitle}
+                          onChange={(e) => setSchoolForm({ ...schoolForm, votingSubtitle: e.target.value })}
+                          placeholder="Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos."
+                          className="w-full p-2.5 text-xs border rounded-lg bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-purple-50/50 rounded-xl border border-purple-100 space-y-3 sm:col-span-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-900 block">
+                          Format Otomatis Generator Token:
+                        </span>
+                        <span className="text-[11px] text-purple-700 font-mono font-semibold">
+                          Pratinjau: {schoolForm.tokenPrefix || 'SMP50-'}7A-1234
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            Awalan / Prefix Token Bawaan
+                          </label>
+                          <input
+                            type="text"
+                            value={schoolForm.tokenPrefix}
+                            onChange={(e) => setSchoolForm({ ...schoolForm, tokenPrefix: e.target.value.toUpperCase() })}
+                            placeholder="SMP50- (atau OSIS-, VOTE-)"
+                            className="w-full p-2.5 text-xs border rounded-lg font-mono bg-white uppercase"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-slate-700 mb-1">
+                            Panjang Digit Angka Acak
+                          </label>
+                          <select
+                            value={schoolForm.tokenLength}
+                            onChange={(e) => setSchoolForm({ ...schoolForm, tokenLength: Number(e.target.value) })}
+                            className="w-full p-2.5 text-xs border rounded-lg bg-white"
+                          >
+                            <option value={4}>4 Digit (contoh: 1234)</option>
+                            <option value={5}>5 Digit (contoh: 12345)</option>
+                            <option value={6}>6 Digit (contoh: 123456)</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end pt-2">
@@ -1356,7 +1940,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
                   >
                     <Save className="w-4 h-4" />
-                    <span>Simpan Pengaturan Sekolah</span>
+                    <span>Simpan Pengaturan & Judul Tampilan</span>
                   </button>
                 </div>
               </div>
@@ -1529,22 +2113,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               </div>
               <div className="flex flex-wrap gap-2 pt-1">
                 <button
+                  type="button"
                   onClick={() => {
-                    if (confirm('Apakah Anda yakin ingin MENGOSONGKAN seluruh kotak suara? Perolehan suara akan direset ke 0 dan semua token dapat digunakan kembali.')) {
-                      resetAllElectionData();
-                    }
+                    resetAllElectionData();
+                    showToast('✓ Kotak suara berhasil dikosongkan. Perolehan suara direset ke 0.');
                   }}
-                  className="px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition-colors"
+                  className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
                 >
                   Kosongkan Kotak Suara (Reset Perolehan Suara)
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
-                    if (confirm('Kembalikan ke data sampel bawaan SMPN 50 Jakarta?')) {
-                      resetToDefaultSampleData();
-                    }
+                    resetToDefaultSampleData();
+                    showToast('✓ Data sampel bawaan SMPN 50 Jakarta berhasil dimuat.');
                   }}
-                  className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold transition-colors"
+                  className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-semibold transition-colors"
                 >
                   Muat Ulang Data Sampel Bawaan
                 </button>
@@ -2053,15 +2637,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Kode Token (Kosongkan untuk otomatis)
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Token (Otomatis atau Ketik Manual)
                   </label>
                   <input
                     type="text"
                     value={newVoterToken}
                     onChange={(e) => setNewVoterToken(e.target.value.toUpperCase())}
-                    placeholder="Auto-generate"
-                    className="w-full p-2 text-xs border rounded-lg font-mono uppercase"
+                    placeholder="Otomatis di-generate sistem (atau ketik khusus)"
+                    className="w-full p-2.5 text-xs border rounded-lg font-mono uppercase bg-amber-50/40 border-amber-200"
                   />
                 </div>
 
@@ -2085,188 +2669,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* MODAL: IMPORT DATA PEMILIH CSV (Nama Lengkap, Kelas, Jenis Pemilih) */}
-        {showImportModal && (() => {
-          // Parse summary in real-time
-          const lines = importText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-          const firstLineLower = (lines[0] || '').toLowerCase();
-          const hasHeader =
-            firstLineLower.includes('nama') ||
-            firstLineLower.includes('kelas') ||
-            firstLineLower.includes('jenis');
-          const dataLines = hasHeader ? lines.slice(1) : lines;
-
-          let countSiswa = 0;
-          let countGuru = 0;
-          let countTU = 0;
-          let countTendik = 0;
-          const previewList: { name: string; classGroup: string; category: string }[] = [];
-
-          dataLines.forEach((line, idx) => {
-            const parts = line.split(/[,;\t]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
-            if (!parts[0]) return;
-            const name = parts[0];
-            const classGroup = (parts[1] || 'UMUM').toUpperCase();
-            const rawCat = (parts[2] || '').toLowerCase();
-
-            let cat: VoterCategory = 'Siswa';
-            if (rawCat.includes('guru')) {
-              cat = 'Guru';
-              countGuru++;
-            } else if (rawCat.includes('tata usaha') || rawCat.includes('tu')) {
-              cat = 'Tata Usaha';
-              countTU++;
-            } else if (rawCat.includes('tendik') || rawCat.includes('kependidikan') || rawCat.includes('staf')) {
-              cat = 'Tendik';
-              countTendik++;
+        {/* MODAL: INPUT & IMPORT DPT BERBENTUK TABEL (SPREADSHEET MODE) */}
+        <TableImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          defaultPrefix={settings.tokenPrefix || "SMP50-"}
+          onSaveVoters={(newVoters, replaceAll) => {
+            importVoters(newVoters, replaceAll);
+            setShowImportModal(false);
+            if (replaceAll) {
+              showToast(`✓ Sukses! DPT telah digantikan & disinkronkan dengan ${newVoters.length} pemilih baru.`);
             } else {
-              cat = 'Siswa';
-              countSiswa++;
+              showToast(`✓ Sukses! ${newVoters.length} pemilih berhasil disinkronkan ke dalam DPT.`);
             }
-
-            if (idx < 5) {
-              previewList.push({ name, classGroup, category: cat });
-            }
-          });
-
-          const totalParsed = countSiswa + countGuru + countTU + countTendik;
-
-          return (
-            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-              <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 my-8 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-sm">
-                      Import Data Pemilih (Format CSV)
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Kolom: <code>Nama Lengkap, Kelas, Jenis Pemilih</code> (Siswa, Guru, Tata Usaha, Tendik)
-                    </p>
-                  </div>
-                  <button onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {/* Upload file button & template link */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-50 border rounded-xl">
-                  <input
-                    type="file"
-                    ref={csvFileInputRef}
-                    onChange={handleCsvFileUpload}
-                    accept=".csv,.txt"
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => csvFileInputRef.current?.click()}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg border shadow-xs"
-                  >
-                    <Upload className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Pilih File CSV dari Komputer</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDownloadCsvTemplate}
-                    className="text-xs text-blue-700 hover:underline font-semibold inline-flex items-center gap-1"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Unduh Contoh Template CSV</span>
-                  </button>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Atau Tempelkan Teks CSV / Baris Data:
-                  </label>
-                  <textarea
-                    rows={6}
-                    value={importText}
-                    onChange={(e) => setImportText(e.target.value)}
-                    placeholder={`Nama Lengkap,Kelas,Jenis Pemilih\nAhmad Fauzan,7A,Siswa\nBunga Lestari,7B,Siswa\nCahya Pratama,8A,Siswa\nDewi Anggraeni,9C,Siswa\nDrs. Bambang Wijaya,Guru,Guru\nSiti Nurhaliza S.Pd,Guru,Guru\nRahmat Hidayat S.E,TU,Tata Usaha\nJoko Susilo,Tendik,Tendik`}
-                    className="w-full p-2.5 text-xs border rounded-lg font-mono leading-relaxed"
-                  />
-                </div>
-
-                {/* Real-time CSV Summary & Preview */}
-                {totalParsed > 0 && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-blue-900">
-                        Hasil Analisis CSV: {totalParsed} Calon Pemilih Terdeteksi
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 text-[11px]">
-                      <span className="px-2 py-0.5 rounded-full bg-blue-200/80 text-blue-800 font-medium">
-                        Siswa: {countSiswa}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-200/80 text-emerald-800 font-medium">
-                        Guru: {countGuru}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-800 font-medium">
-                        Tata Usaha: {countTU}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-full bg-purple-200/80 text-purple-800 font-medium">
-                        Tendik: {countTendik}
-                      </span>
-                    </div>
-
-                    <div className="border-t border-blue-200 pt-2">
-                      <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold block mb-1">
-                        Pratinjau 5 Baris Pertama:
-                      </span>
-                      <div className="overflow-x-auto text-[11px] bg-white rounded border">
-                        <table className="w-full text-left">
-                          <thead className="bg-slate-100 text-slate-600">
-                            <tr>
-                              <th className="p-1.5">Nama</th>
-                              <th className="p-1.5">Kelas</th>
-                              <th className="p-1.5">Jenis</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {previewList.map((row, idx) => (
-                              <tr key={idx}>
-                                <td className="p-1.5 font-medium">{row.name}</td>
-                                <td className="p-1.5 text-slate-600">{row.classGroup}</td>
-                                <td className="p-1.5">{row.category}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowImportModal(false)}
-                    className="flex-1 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleProcessCsvImport}
-                    disabled={totalParsed === 0}
-                    className="flex-1 py-2 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 text-white font-bold transition-colors"
-                  >
-                    Proses & Masukkan {totalParsed > 0 ? `(${totalParsed} Pemilih)` : ''} ke DPT
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+          }}
+          existingTokens={tokens}
+          onDownloadTemplate={handleDownloadCsvTemplate}
+        />
 
         {/* MODAL: RESET DAFTAR PEMILIH DENGAN PILIHAN LENGKAP */}
         {showResetVotersModal && (
           <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center gap-3 border-b pb-3">
                 <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-5 h-5" />
@@ -2297,13 +2721,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm(`Yakin MENGOSONGKAN SELURUH DPT (${tokens.length} pemilih)? Tindakan ini akan menghapus semua token pemilih.`)) {
-                          resetVotersList();
-                          setShowResetVotersModal(false);
-                          alert('Seluruh DPT berhasil dikosongkan.');
-                        }
+                        resetVotersList();
+                        setShowResetVotersModal(false);
+                        showToast('✓ Berhasil! Seluruh DPT dan token telah dikosongkan.');
                       }}
-                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shrink-0 transition-colors"
+                      className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shrink-0 transition-colors shadow-2xs"
                     >
                       Kosongkan
                     </button>
@@ -2325,13 +2747,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm('Yakin ingin mereset status semua pemilih menjadi Belum Memilih dan mengosongkan perolehan suara?')) {
-                          resetTokensVoteStatus();
-                          setShowResetVotersModal(false);
-                          alert('Status seluruh pemilih berhasil dikembalikan ke Belum Memilih.');
-                        }
+                        resetTokensVoteStatus();
+                        setShowResetVotersModal(false);
+                        showToast('✓ Status seluruh pemilih berhasil dikembalikan ke Belum Memilih.');
                       }}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shrink-0 transition-colors"
+                      className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shrink-0 transition-colors shadow-2xs"
                     >
                       Reset Status
                     </button>
@@ -2353,13 +2773,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm('Kembalikan ke data sampel bawaan SMPN 50 Jakarta?')) {
-                          resetToDefaultSampleData();
-                          setShowResetVotersModal(false);
-                          alert('Data sampel default berhasil dimuat kembali.');
-                        }
+                        resetToDefaultSampleData();
+                        setShowResetVotersModal(false);
+                        showToast('✓ Data sampel default SMPN 50 Jakarta berhasil dimuat kembali.');
                       }}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold shrink-0 transition-colors"
+                      className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold shrink-0 transition-colors shadow-2xs"
                     >
                       Pulihkan
                     </button>
@@ -2390,15 +2808,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Token
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Token Pemilih (Bisa Di-Custom Admin)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prefix = settings.tokenPrefix || 'SMP50-';
+                        const cleanClass = (editingVoter.classGroup || 'VOTE').replace(/[^A-Z0-9]/g, '');
+                        const randomNum = Math.floor(1000 + Math.random() * 9000);
+                        setEditingVoter({
+                          ...editingVoter,
+                          token: `${prefix}${cleanClass}-${randomNum}`
+                        });
+                      }}
+                      className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 hover:underline"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                      <span>Acak Token</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={editingVoter.token}
-                    disabled
-                    className="w-full p-2 text-xs border rounded-lg bg-slate-100 font-mono"
+                    onChange={(e) => setEditingVoter({ ...editingVoter, token: e.target.value.trim().toUpperCase() })}
+                    placeholder="Masukkan atau sesuaikan token..."
+                    className="w-full p-2.5 text-xs font-mono font-bold border rounded-lg focus:ring-2 focus:ring-blue-600 uppercase bg-amber-50/50 border-amber-200"
+                    required
                   />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Admin dapat mengetik manual token khusus atau klik 'Acak Token'.
+                  </p>
                 </div>
 
                 <div>
@@ -2465,7 +2906,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setEditingVoter(null)}
+                  onClick={() => {
+                    setEditingVoter(null);
+                    setOriginalEditingToken(null);
+                  }}
                   className="flex-1 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700"
                 >
                   Batal
@@ -2473,8 +2917,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                 <button
                   type="button"
                   onClick={() => {
-                    updateVoter(editingVoter.token, editingVoter);
+                    if (!editingVoter.token.trim()) {
+                      showToast('Token tidak boleh kosong.');
+                      return;
+                    }
+                    const targetOrig = originalEditingToken || editingVoter.token;
+                    // Check duplicate if token changed
+                    if (editingVoter.token !== targetOrig && tokens.some((t) => t.token === editingVoter.token)) {
+                      showToast(`Token "${editingVoter.token}" sudah digunakan oleh pemilih lain. Gunakan token unik.`);
+                      return;
+                    }
+                    updateVoter(targetOrig, editingVoter);
                     setEditingVoter(null);
+                    setOriginalEditingToken(null);
+                    showToast('✓ Data pemilih dan token berhasil diperbarui.');
                   }}
                   className="flex-1 py-2 text-xs rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                 >
@@ -2485,12 +2941,162 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           </div>
         )}
 
+        {/* MODAL: TAMBAH / EDIT TAHAPAN TIMELINE */}
+        {showTimelineModal && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 my-8 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-blue-100 text-blue-800 rounded-lg">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">
+                      {editingTimelineId ? 'Edit Tahapan Pilkasis' : 'Tambah Tahapan Agenda Pilkasis'}
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Isi rincian hari, kegiatan, dan keterangan tahapan pemilihan.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTimelineModal(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveTimelineItem} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Hari & Tanggal <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={timelineDayDate}
+                    onChange={(e) => setTimelineDayDate(e.target.value)}
+                    placeholder="Contoh: Senin, 21 Oktober 2024 atau 14 - 18 Oktober 2024"
+                    className="w-full p-2.5 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Format bebas: dapat berupa hari tunggal atau rentang tanggal.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Nama Kegiatan <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={timelineActivity}
+                    onChange={(e) => setTimelineActivity(e.target.value)}
+                    placeholder="Contoh: Pemungutan Suara E-Voting & Quick Count Real-Time"
+                    className="w-full p-2.5 text-xs font-semibold border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Keterangan Kegiatan <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={timelineDescription}
+                    onChange={(e) => setTimelineDescription(e.target.value)}
+                    placeholder="Deskripsi rincian pelaksanaan, ketentuan peserta, atau catatan penting tahapan ini..."
+                    className="w-full p-2.5 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Status Tahapan
+                    </label>
+                    <select
+                      value={timelineStatus}
+                      onChange={(e) => setTimelineStatus(e.target.value as TimelineStatus)}
+                      className="w-full p-2.5 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500 font-medium"
+                    >
+                      <option value="upcoming">Akan Datang</option>
+                      <option value="ongoing">Sedang Berlangsung</option>
+                      <option value="completed">Selesai</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Waktu Pelaksanaan (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      value={timelineTime}
+                      onChange={(e) => setTimelineTime(e.target.value)}
+                      placeholder="Contoh: 07.30 - 14.00 WIB"
+                      className="w-full p-2.5 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Lokasi / Tempat (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={timelineLocation}
+                    onChange={(e) => setTimelineLocation(e.target.value)}
+                    placeholder="Contoh: Ruang Komputer / Lapangan Utama"
+                    className="w-full p-2.5 text-xs border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-3 border-t">
+                  <button
+                    type="button"
+                    onClick={() => setShowTimelineModal(false)}
+                    className="flex-1 py-2 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 py-2 text-xs rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-xs transition-colors"
+                  >
+                    {editingTimelineId ? 'Simpan Perubahan' : 'Tambahkan ke Jadwal'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* PRINT MODAL */}
         {showPrintModal && (
           <PrintTokenModal
             tokens={filteredTokens}
             onClose={() => setShowPrintModal(false)}
           />
+        )}
+
+        {/* FLOATING TOAST NOTIFICATION */}
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-70 flex items-center gap-2.5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-md">
+            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span className="text-xs font-semibold leading-relaxed">{toastMessage}</span>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="ml-2 text-slate-400 hover:text-white shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         )}
       </div>
     </div>

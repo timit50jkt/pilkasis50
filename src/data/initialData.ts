@@ -1,4 +1,4 @@
-import { CandidatePair, ElectionSettings, VoterToken, VoteRecord } from '../types/election';
+import { CandidatePair, ElectionSettings, VoterToken, VoteRecord, TimelineItem } from '../types/election';
 
 export const INITIAL_SETTINGS: ElectionSettings = {
   electionName: 'Pemilihan Ketua & Wakil Ketua OSIS',
@@ -173,3 +173,88 @@ export function generateInitialTokensAndVotes(): { tokens: VoterToken[]; votes: 
 
   return { tokens, votes };
 }
+
+export const INITIAL_TIMELINE: TimelineItem[] = [
+  {
+    id: 'timeline-1',
+    dayDate: 'Senin, 07 Oktober 2024',
+    activity: 'Sosialisasi & Pengumuman Tahapan Pilkasis 2024/2025',
+    description: 'Penyampaian tahapan pemilihan, kriteria calon ketua & wakil ketua OSIS saat upacara bendera, serta pembagian edaran ke seluruh kelas VII, VIII, dan IX.',
+    status: 'completed',
+    time: '07.00 - 08.00 WIB',
+    location: 'Lapangan Upacara SMPN 50 Jakarta'
+  },
+  {
+    id: 'timeline-2',
+    dayDate: 'Rabu - Jumat, 09 - 11 Oktober 2024',
+    activity: 'Pendaftaran & Pengambilan Formulir Bakal Calon',
+    description: 'Pengambilan formulir pendaftaran, pengumpulan berkas portofolio, visi misi, surat persetujuan orang tua, serta surat rekomendasi wali kelas.',
+    status: 'completed',
+    time: '08.00 - 15.00 WIB',
+    location: 'Ruang Sekretariat MPK SMPN 50'
+  },
+  {
+    id: 'timeline-3',
+    dayDate: 'Senin, 14 Oktober 2024',
+    activity: 'Verifikasi Berkas, Tes Wawancara & Uji Kelayakan',
+    description: 'Pemeriksaan keabsahan dokumen, wawancara kepemimpinan, komitmen kedisiplinan, dan uji kompetensi bersama Kepala Sekolah & Dewan Guru Pembina.',
+    status: 'completed',
+    time: '09.00 - 14.30 WIB',
+    location: 'Ruang Rapat Guru'
+  },
+  {
+    id: 'timeline-4',
+    dayDate: 'Rabu, 16 Oktober 2024',
+    activity: 'Rapat Pleno Penetapan Paslon & Pengundian Nomor Urut',
+    description: 'Penetapan Pasangan Calon Resmi: Paslon 01 (Andra Pratama & Maya Lestari) dan Paslon 02 (Rafi H. & Alya N.) serta penandatanganan Pakta Integritas Kampanye Damai.',
+    status: 'completed',
+    time: '13.30 - 15.00 WIB',
+    location: 'Aula Pertemuan Utama'
+  },
+  {
+    id: 'timeline-5',
+    dayDate: 'Kamis - Jumat, 17 - 18 Oktober 2024',
+    activity: 'Masa Kampanye & Debat Terbuka Kandidat Paslon',
+    description: 'Penyampaian visi misi dan program kerja unggulan di hadapan seluruh siswa, orasi bergilir ke ruang kelas, dan debat terbuka antar paslon.',
+    status: 'completed',
+    time: '07.30 - 11.30 WIB',
+    location: 'Panggung Terbuka & Ruang Kelas'
+  },
+  {
+    id: 'timeline-6',
+    dayDate: 'Senin, 21 Oktober 2024',
+    activity: 'Masa Tenang & Simulasi Teknis Bilik Suara E-Voting',
+    description: 'Pembersihan atribut kampanye di lingkungan sekolah, pembagian token pemilih resmi ke wali kelas, serta uji beban server dan sistem Quick Count.',
+    status: 'completed',
+    time: '08.00 - 14.00 WIB',
+    location: 'Laboratorium Komputer & Server MPK'
+  },
+  {
+    id: 'timeline-7',
+    dayDate: 'Selasa, 22 Oktober 2024',
+    activity: 'Hari Pemungutan Suara (E-Voting) & Quick Count Real-Time',
+    description: 'Pelaksanaan pencoblosan mandiri menggunakan token unik oleh seluruh siswa Kelas 7, 8, 9, Dewan Guru, dan Tenaga Kependidikan. Hasil rekapitulasi terpantau langsung secara live.',
+    status: 'ongoing',
+    time: '07.30 - 14.00 WIB',
+    location: 'Bilik Suara Digital (Online / Lab Komputer)'
+  },
+  {
+    id: 'timeline-8',
+    dayDate: 'Rabu, 23 Oktober 2024',
+    activity: 'Sidang Pleno Rekapitulasi Suara & Pengesahan Hasil Pilkasis',
+    description: 'Penandatanganan Berita Acara Rekapitulasi Suara oleh Panitia MPK, Kepala Sekolah, dan Saksi masing-masing Paslon serta pengumuman resmi pemenang terpilih.',
+    status: 'upcoming',
+    time: '10.00 - 12.00 WIB',
+    location: 'Ruang Multimedia SMPN 50'
+  },
+  {
+    id: 'timeline-9',
+    dayDate: 'Senin, 28 Oktober 2024',
+    activity: 'Upacara Pelantikan & Serah Terima Jabatan Pengurus OSIS',
+    description: 'Upacara resmi pelantikan Ketua & Wakil Ketua OSIS Terpilih Masa Bakti 2024/2025 bersamaan dengan Peringatan Hari Sumpah Pemuda.',
+    status: 'upcoming',
+    time: '07.00 - 08.30 WIB',
+    location: 'Lapangan Upacara SMPN 50 Jakarta'
+  }
+];
+

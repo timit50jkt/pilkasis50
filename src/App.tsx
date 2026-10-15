@@ -9,6 +9,7 @@ import { Navbar, ActiveTab } from './components/Navbar';
 import { QuickCountView } from './components/QuickCountView';
 import { VotingBooth } from './components/VotingBooth';
 import { CandidateCards } from './components/CandidateCards';
+import { TimelineView } from './components/TimelineView';
 import { ProjectorMode } from './components/ProjectorMode';
 import { AdminPanel } from './components/AdminPanel';
 import { CandidateDetailModal } from './components/CandidateDetailModal';
@@ -58,6 +59,14 @@ function ElectionApp() {
             onGoToVoting={() => setActiveTab('voting')}
             selectedCandidateDetail={selectedCandidateDetail}
             setSelectedCandidateDetail={setSelectedCandidateDetail}
+          />
+        )}
+
+        {activeTab === 'timeline' && (
+          <TimelineView
+            onGoToVoting={() => setActiveTab('voting')}
+            onGoToQuickCount={() => setActiveTab('quickcount')}
+            onOpenAdmin={() => setIsAdminOpen(true)}
           />
         )}
       </main>
