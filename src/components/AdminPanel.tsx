@@ -147,7 +147,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [tableRows, setTableRows] = useState<TableImportRow[]>([]);
   const [pasteBoxText, setPasteBoxText] = useState('');
   const [showPasteBox, setShowPasteBox] = useState(false);
-  const [tableTokenPrefix, setTableTokenPrefix] = useState<string>(settings.tokenPrefix || 'SMP50-');
+  const [tableTokenPrefix, setTableTokenPrefix] = useState<string>(
+    settings.tokenPrefix && !settings.tokenPrefix.includes('SMP50') ? settings.tokenPrefix : 'S'
+  );
 
   // New single voter form
   const [newVoterName, setNewVoterName] = useState('');
@@ -166,9 +168,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     quickCountTitle: settings.quickCountTitle || 'Quick Count Perhitungan Suara Pemilihan OSIS',
     quickCountSubtitle: settings.quickCountSubtitle || 'Pantau perolehan suara resmi secara real-time, transparan, dan akurat.',
     votingTitle: settings.votingTitle || 'Masuk dengan Token Pemilihan',
-    votingSubtitle: settings.votingSubtitle || 'Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos.',
-    tokenPrefix: settings.tokenPrefix ?? 'SMP50-',
-    tokenLength: settings.tokenLength || 6
+    votingSubtitle: settings.votingSubtitle || 'Gunakan token 5 digit unik Anda (contoh: S7A01). Setiap token hanya berlaku satu kali coblos.',
+    tokenPrefix: settings.tokenPrefix && !settings.tokenPrefix.includes('SMP50') ? settings.tokenPrefix : 'S',
+    tokenLength: 5
   });
   const [schoolSaveMsg, setSchoolSaveMsg] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -605,32 +607,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Download Sample CSV Template with Excel compatibility (sep=; and UTF-8 BOM)
-  const handleDownloadCsvTemplate = () => {
+  // Download Sample CSV Template with proper quote formatting and BOM
+  const handleDownloadCsvTemplate = (delimiter: ';' | ',' = ',') => {
+    const rows = [
+      ['Nama Lengkap', 'Kelas/Unit', 'Jenis DPT'],
+      ['Ahmad Fauzan Pratama', '7A', 'Siswa'],
+      ['Bunga Lestari Putri', '7B', 'Siswa'],
+      ['Cahya Adiguna', '8A', 'Siswa'],
+      ['Dewi Anggraeni', '8C', 'Siswa'],
+      ['Eko Wahyudi', '9A', 'Siswa'],
+      ['Fitri Handayani', '9B', 'Siswa'],
+      ['Drs. Bambang Wijaya M.Pd', 'GURU', 'Guru'],
+      ['Siti Nurhaliza S.Pd', 'GURU', 'Guru'],
+      ['Rahmat Hidayat S.E', 'TU', 'Tata Usaha'],
+      ['Joko Susilo', 'TENDIK', 'Tendik']
+    ];
+
     const csvContent =
-      '\uFEFFsep=;\r\n' +
-      'Nama Lengkap;Kelas/Unit;Jenis DPT\r\n' +
-      'Ahmad Fauzan Pratama;7A;Siswa\r\n' +
-      'Bunga Lestari Putri;7B;Siswa\r\n' +
-      'Cahya Adiguna;8A;Siswa\r\n' +
-      'Dewi Anggraeni;8C;Siswa\r\n' +
-      'Eko Wahyudi;9A;Siswa\r\n' +
-      'Fitri Handayani;9B;Siswa\r\n' +
-      'Drs. Bambang Wijaya M.Pd;GURU;Guru\r\n' +
-      'Siti Nurhaliza S.Pd;GURU;Guru\r\n' +
-      'Rahmat Hidayat S.E;TU;Tata Usaha\r\n' +
-      'Joko Susilo;TENDIK;Tendik\r\n';
+      '\uFEFF' +
+      rows
+        .map((row) =>
+          row
+            .map((cell) =>
+              cell.includes(delimiter) || cell.includes('"') || cell.includes('\n')
+                ? `"${cell.replace(/"/g, '""')}"`
+                : cell
+            )
+            .join(delimiter)
+        )
+        .join('\r\n') +
+      '\r\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Template_DPT_SMPN50.csv';
+    link.download = `Template_DPT_SMPN50_${delimiter === ';' ? 'TitikKoma' : 'Koma'}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    showToast('✓ Template CSV (Nama Lengkap, Kelas/Unit, Jenis DPT) berhasil diunduh.');
+    showToast(`✓ Template CSV (${delimiter === ';' ? 'Pemisah Titik Koma ;' : 'Pemisah Koma ,'}) berhasil diunduh. Kolom: Nama Lengkap | Kelas/Unit | Jenis DPT.`);
   };
 
   // Token Generator for Table Rows
@@ -641,29 +658,65 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     return `${pfx}${cleanClass}-${num}`;
   };
 
-  // Convert raw text (CSV or Tab-separated from Excel/Sheets) into Table rows
+  // Convert raw text (CSV, TSV, Semicolon) into Table rows with proper delimiter & quote support
   const parseRawTextToRows = (raw: string, currentPrefix?: string): TableImportRow[] => {
     const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return [];
 
-    const firstLineLower = lines[0].toLowerCase();
+    const filteredLines = lines.filter((l) => !l.toLowerCase().startsWith('sep='));
+    if (filteredLines.length === 0) return [];
+
+    const firstLineLower = filteredLines[0].toLowerCase();
     const hasHeader =
       firstLineLower.includes('nama') ||
+      firstLineLower.includes('lengkap') ||
+      firstLineLower.includes('siswa') ||
       firstLineLower.includes('kelas') ||
+      firstLineLower.includes('unit') ||
       firstLineLower.includes('jenis') ||
+      firstLineLower.includes('dpt') ||
       firstLineLower.includes('token');
 
-    const dataLines = hasHeader ? lines.slice(1) : lines;
+    const dataLines = hasHeader ? filteredLines.slice(1) : filteredLines;
     const generated: TableImportRow[] = [];
 
     dataLines.forEach((line, idx) => {
-      const parts = line.split(/[\t,;]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
-      if (parts.length === 0 || !parts[0]) return;
+      let delimiter = ',';
+      if (line.includes('\t')) {
+        delimiter = '\t';
+      } else if (line.includes(';')) {
+        delimiter = ';';
+      }
 
-      const name = parts[0];
-      const classGroup = (parts[1] || '7A').toUpperCase();
-      const rawCategory = (parts[2] || '').toLowerCase();
-      const customToken = parts[3] ? parts[3].toUpperCase() : '';
+      const parts: string[] = [];
+      let current = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' || char === "'") {
+          if (inQuotes && line[i + 1] === char) {
+            current += char;
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === delimiter && !inQuotes) {
+          parts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current.trim());
+
+      const cleanParts = parts.map((p) => p.replace(/^["']|["']$/g, '').trim());
+      if (cleanParts.length === 0 || !cleanParts[0]) return;
+
+      const name = cleanParts[0];
+      const classGroup = (cleanParts[1] || '7A').toUpperCase();
+      const rawCategory = (cleanParts[2] || '').toLowerCase();
+      const customToken = cleanParts[3] ? cleanParts[3].toUpperCase() : '';
 
       let category: VoterCategory = 'Siswa';
       if (rawCategory.includes('guru')) {
@@ -1300,17 +1353,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                 <button
                   onClick={handleDownloadExcelTemplate}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-300 shadow-2xs transition-colors"
-                  title="Unduh file Microsoft Excel resmi (.xlsx) dengan Kolom A, B, C terpisah"
+                  title="Unduh file Microsoft Excel resmi (.xlsx) dengan Kolom A, B, C terpisah sempurna"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Unduh Template Excel (.xlsx)</span>
                 </button>
                 <button
-                  onClick={handleDownloadCsvTemplate}
+                  onClick={() => handleDownloadCsvTemplate(',')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold border border-slate-300"
+                  title="Unduh Template CSV format standar (Pemisah Koma ,)"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Unduh Template CSV</span>
+                  <span>Unduh CSV</span>
                 </button>
                 <button
                   onClick={() => setShowPrintModal(true)}
@@ -1337,13 +1391,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   </button>
                 )}
 
-                {/* Reset Voters Button */}
+                {/* Reset Voters Buttons */}
                 <button
                   onClick={() => setShowResetVotersModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 transition-colors shadow-2xs"
+                  title="Buka menu opsi reset DPT"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>Reset / Kosongkan DPT</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('PERINGATAN: Kosongkan seluruh daftar pemilih (DPT) dan kotak suara menjadi 0? Tindakan ini akan menghapus semua siswa dan token yang ada.')) {
+                      resetVotersList();
+                      showToast('✓ Berhasil! Seluruh DPT telah dikosongkan. Jumlah DPT sekarang: 0.');
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                  title="Klik untuk langsung mengosongkan seluruh DPT menjadi 0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Kosongkan (0)</span>
                 </button>
               </div>
             </div>

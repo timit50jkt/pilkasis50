@@ -43,7 +43,9 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
   onSaveVoters,
   existingTokens
 }) => {
-  const [tableTokenPrefix, setTableTokenPrefix] = useState<string>(defaultPrefix || 'SMP50-');
+  const [tableTokenPrefix, setTableTokenPrefix] = useState<string>(
+    defaultPrefix && !defaultPrefix.includes('SMP50') ? defaultPrefix : 'S'
+  );
   const [tableRows, setTableRows] = useState<TableImportRow[]>([]);
   const [showPasteBox, setShowPasteBox] = useState(false);
   const [pasteBoxText, setPasteBoxText] = useState('');
@@ -54,12 +56,37 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Helper: Token Generator for a Row
-  const makeToken = (classGroup: string, prefixVal?: string) => {
-    const pfx = prefixVal !== undefined ? prefixVal : (tableTokenPrefix || 'SMP50-');
-    const cleanClass = (classGroup || 'VOTE').replace(/[^A-Z0-9]/g, '') || 'VOTE';
-    const num = Math.floor(1000 + Math.random() * 9000);
-    return `${pfx}${cleanClass}-${num}`;
+  // Helper: Token Generator for a Row (Format 5 digit tanpa tanda hubung "-", misal: S7A01)
+  const makeToken = (classGroup: string, prefixVal?: string, indexNum?: number): string => {
+    let pfx = 'S';
+    if (prefixVal && prefixVal.length > 0) {
+      pfx = prefixVal.replace(/[^A-Z0-9]/gi, '').charAt(0).toUpperCase() || 'S';
+    }
+    const clean = (classGroup || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    let code = '7A';
+    if (clean.includes('GURU')) {
+      pfx = 'G';
+      code = '50';
+    } else if (clean.includes('TU') || clean.includes('TATA')) {
+      pfx = 'T';
+      code = '50';
+    } else if (clean.includes('TENDIK') || clean.includes('STAF')) {
+      pfx = 'K';
+      code = '50';
+    } else if (clean.length >= 2) {
+      code = clean.slice(0, 2);
+    } else if (clean.length === 1) {
+      code = clean + '0';
+    } else {
+      code = '7A';
+    }
+
+    const numStr =
+      indexNum !== undefined && indexNum > 0
+        ? String(indexNum % 100 === 0 ? 99 : indexNum % 100).padStart(2, '0')
+        : String(Math.floor(1 + Math.random() * 99)).padStart(2, '0');
+
+    return `${pfx}${code}${numStr}`.toUpperCase().slice(0, 5);
   };
 
   // Helper to parse category
@@ -118,28 +145,42 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
     }
   };
 
-  // 2. Download Excel-Friendly CSV Template with BOM and Semicolon delimiter
-  const handleDownloadCsvTemplate = () => {
-    // Semicolon-delimited with \uFEFF BOM and sep=; header ensures Excel opens into Columns A, B, C!
+  // 2. Download Excel-Friendly CSV Template (Comma or Semicolon format)
+  const handleDownloadCsvTemplate = (delimiter: ';' | ',' = ',') => {
+    const rows = [
+      ['Nama Lengkap', 'Kelas/Unit', 'Jenis DPT'],
+      ['Ahmad Fauzan Pratama', '7A', 'Siswa'],
+      ['Bunga Lestari Putri', '7B', 'Siswa'],
+      ['Cahya Adiguna', '8A', 'Siswa'],
+      ['Dewi Anggraeni', '8C', 'Siswa'],
+      ['Eko Wahyudi', '9A', 'Siswa'],
+      ['Fitri Handayani', '9B', 'Siswa'],
+      ['Drs. Bambang Wijaya M.Pd', 'GURU', 'Guru'],
+      ['Siti Nurhaliza S.Pd', 'GURU', 'Guru'],
+      ['Rahmat Hidayat S.E', 'TU', 'Tata Usaha'],
+      ['Joko Susilo', 'TENDIK', 'Tendik']
+    ];
+
     const csvContent =
-      '\uFEFFsep=;\r\n' +
-      'Nama Lengkap;Kelas/Unit;Jenis DPT\r\n' +
-      'Ahmad Fauzan Pratama;7A;Siswa\r\n' +
-      'Bunga Lestari Putri;7B;Siswa\r\n' +
-      'Cahya Adiguna;8A;Siswa\r\n' +
-      'Dewi Anggraeni;8C;Siswa\r\n' +
-      'Eko Wahyudi;9A;Siswa\r\n' +
-      'Fitri Handayani;9B;Siswa\r\n' +
-      'Drs. Bambang Wijaya M.Pd;GURU;Guru\r\n' +
-      'Siti Nurhaliza S.Pd;GURU;Guru\r\n' +
-      'Rahmat Hidayat S.E;TU;Tata Usaha\r\n' +
-      'Joko Susilo;TENDIK;Tendik\r\n';
+      '\uFEFF' +
+      rows
+        .map((row) =>
+          row
+            .map((cell) =>
+              cell.includes(delimiter) || cell.includes('"') || cell.includes('\n')
+                ? `"${cell.replace(/"/g, '""')}"`
+                : cell
+            )
+            .join(delimiter)
+        )
+        .join('\r\n') +
+      '\r\n';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'Template_DPT_SMPN50.csv';
+    link.download = `Template_DPT_SMPN50_${delimiter === ';' ? 'TitikKoma' : 'Koma'}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -147,17 +188,17 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
 
     setUploadFeedback({
       type: 'success',
-      text: '✓ File Template_DPT_SMPN50.csv berhasil diunduh dengan pemisah kolom otomatis untuk Excel.'
+      text: `✓ File Template CSV (${delimiter === ';' ? 'Pemisah Titik Koma ;' : 'Pemisah Koma ,'}) berhasil diunduh. Kolom: Nama Lengkap | Kelas/Unit | Jenis DPT.`
     });
     setTimeout(() => setUploadFeedback(null), 5000);
   };
 
-  // Convert raw text (CSV, TSV, Semicolon) into Table rows
+  // Convert raw text (CSV, TSV, Semicolon) into Table rows with proper quote and delimiter handling
   const parseRawTextToRows = (raw: string, currentPrefix?: string): TableImportRow[] => {
     const rawLines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     if (rawLines.length === 0) return [];
 
-    // Filter out "sep=;" if present
+    // Filter out "sep=;" or "sep=," if present
     const lines = rawLines.filter((l) => !l.toLowerCase().startsWith('sep='));
     if (lines.length === 0) return [];
 
@@ -176,28 +217,44 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
     const generated: TableImportRow[] = [];
 
     dataLines.forEach((line, idx) => {
-      let parts: string[];
+      // Determine delimiter for this line: Tab > Semicolon > Comma
+      let delimiter = ',';
       if (line.includes('\t')) {
-        parts = line.split('\t');
+        delimiter = '\t';
       } else if (line.includes(';')) {
-        parts = line.split(';');
-      } else {
-        // Match comma-separated with potential quotes
-        const matched = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        if (matched && matched.length >= 2) {
-          parts = matched;
-        } else {
-          parts = line.split(',');
-        }
+        delimiter = ';';
       }
 
-      parts = parts.map((p) => p.trim().replace(/^["']|["']$/g, ''));
-      if (parts.length === 0 || !parts[0]) return;
+      // Quote-aware CSV parser
+      const parts: string[] = [];
+      let current = '';
+      let inQuotes = false;
 
-      const name = parts[0];
-      const classGroup = (parts[1] || '7A').toUpperCase();
-      const rawCategory = parts[2] || '';
-      const customToken = parts[3] ? parts[3].toUpperCase() : '';
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' || char === "'") {
+          if (inQuotes && line[i + 1] === char) {
+            current += char;
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === delimiter && !inQuotes) {
+          parts.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current.trim());
+
+      const cleanParts = parts.map((p) => p.replace(/^["']|["']$/g, '').trim());
+      if (cleanParts.length === 0 || !cleanParts[0]) return;
+
+      const name = cleanParts[0];
+      const classGroup = (cleanParts[1] || '7A').toUpperCase();
+      const rawCategory = cleanParts[2] || '';
+      const customToken = cleanParts[3] ? cleanParts[3].toUpperCase() : '';
 
       const category = parseCategory(rawCategory, classGroup);
       const token = customToken || makeToken(classGroup, currentPrefix);
@@ -342,19 +399,19 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
     }
   };
 
-  // 1-Click Load Realistic Sample Columns
+  // 1-Click Load Realistic Sample Columns (Format 5 digit tanpa tanda hubung "-", misal S7A01)
   const handleLoadSampleColumns = () => {
     const sampleRows: TableImportRow[] = [
-      { id: 'sample-1', name: 'Ahmad Fauzan Pratama', classGroup: '7A', category: 'Siswa', token: makeToken('7A') },
-      { id: 'sample-2', name: 'Bunga Lestari Putri', classGroup: '7B', category: 'Siswa', token: makeToken('7B') },
-      { id: 'sample-3', name: 'Cahya Adiguna', classGroup: '8A', category: 'Siswa', token: makeToken('8A') },
-      { id: 'sample-4', name: 'Dewi Anggraeni', classGroup: '8C', category: 'Siswa', token: makeToken('8C') },
-      { id: 'sample-5', name: 'Eko Wahyudi', classGroup: '9A', category: 'Siswa', token: makeToken('9A') },
-      { id: 'sample-6', name: 'Fitri Handayani', classGroup: '9B', category: 'Siswa', token: makeToken('9B') },
-      { id: 'sample-7', name: 'Drs. Bambang Wijaya M.Pd', classGroup: 'GURU', category: 'Guru', token: makeToken('GURU') },
-      { id: 'sample-8', name: 'Siti Nurhaliza S.Pd', classGroup: 'GURU', category: 'Guru', token: makeToken('GURU') },
-      { id: 'sample-9', name: 'Rahmat Hidayat S.E', classGroup: 'TU', category: 'Tata Usaha', token: makeToken('TU') },
-      { id: 'sample-10', name: 'Joko Susilo', classGroup: 'TENDIK', category: 'Tendik', token: makeToken('TENDIK') }
+      { id: 'sample-1', name: 'Ahmad Fauzan Pratama', classGroup: '7A', category: 'Siswa', token: makeToken('7A', tableTokenPrefix, 1) },
+      { id: 'sample-2', name: 'Bunga Lestari Putri', classGroup: '7B', category: 'Siswa', token: makeToken('7B', tableTokenPrefix, 2) },
+      { id: 'sample-3', name: 'Cahya Adiguna', classGroup: '8A', category: 'Siswa', token: makeToken('8A', tableTokenPrefix, 3) },
+      { id: 'sample-4', name: 'Dewi Anggraeni', classGroup: '8C', category: 'Siswa', token: makeToken('8C', tableTokenPrefix, 4) },
+      { id: 'sample-5', name: 'Eko Wahyudi', classGroup: '9A', category: 'Siswa', token: makeToken('9A', tableTokenPrefix, 5) },
+      { id: 'sample-6', name: 'Fitri Handayani', classGroup: '9B', category: 'Siswa', token: makeToken('9B', tableTokenPrefix, 6) },
+      { id: 'sample-7', name: 'Drs. Bambang Wijaya M.Pd', classGroup: 'GURU', category: 'Guru', token: makeToken('GURU', 'G', 1) },
+      { id: 'sample-8', name: 'Siti Nurhaliza S.Pd', classGroup: 'GURU', category: 'Guru', token: makeToken('GURU', 'G', 2) },
+      { id: 'sample-9', name: 'Rahmat Hidayat S.E', classGroup: 'TU', category: 'Tata Usaha', token: makeToken('TU', 'T', 1) },
+      { id: 'sample-10', name: 'Joko Susilo', classGroup: 'TENDIK', category: 'Tendik', token: makeToken('TENDIK', 'K', 1) }
     ];
     setTableRows(sampleRows);
     setUploadFeedback({
@@ -520,7 +577,7 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
                     <th className="py-2 px-3 border-r border-blue-200">Kolom A: Nama Lengkap</th>
                     <th className="py-2 px-3 border-r border-blue-200">Kolom B: Kelas/Unit</th>
                     <th className="py-2 px-3 border-r border-blue-200">Kolom C: Jenis DPT</th>
-                    <th className="py-2 px-3 bg-purple-50 text-purple-900">Kolom D (Sistem): Token Pemilih</th>
+                    <th className="py-2 px-3 bg-purple-50 text-purple-900">Kolom D (Sistem): Token Pemilih (5 Digit)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-[11px] font-sans">
@@ -528,19 +585,19 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
                     <td className="py-1.5 px-3 text-slate-900 font-semibold border-r border-slate-100">Ahmad Fauzan Pratama</td>
                     <td className="py-1.5 px-3 font-bold text-slate-700 border-r border-slate-100">7A</td>
                     <td className="py-1.5 px-3 text-blue-700 font-medium border-r border-slate-100">Siswa</td>
-                    <td className="py-1.5 px-3 font-mono font-bold text-purple-700 bg-purple-50/40">SMP50-7A-4821 (Otomatis)</td>
+                    <td className="py-1.5 px-3 font-mono font-bold text-purple-700 bg-purple-50/40">S7A01 (Otomatis 5 Digit)</td>
                   </tr>
                   <tr>
                     <td className="py-1.5 px-3 text-slate-900 font-semibold border-r border-slate-100">Bunga Lestari Putri</td>
                     <td className="py-1.5 px-3 font-bold text-slate-700 border-r border-slate-100">7B</td>
                     <td className="py-1.5 px-3 text-blue-700 font-medium border-r border-slate-100">Siswa</td>
-                    <td className="py-1.5 px-3 font-mono font-bold text-purple-700 bg-purple-50/40">SMP50-7B-9102 (Otomatis)</td>
+                    <td className="py-1.5 px-3 font-mono font-bold text-purple-700 bg-purple-50/40">S7B02 (Otomatis 5 Digit)</td>
                   </tr>
                   <tr>
                     <td className="py-1.5 px-3 text-slate-900 font-semibold border-r border-slate-100">Drs. Bambang Wijaya M.Pd</td>
                     <td className="py-1.5 px-3 font-bold text-slate-700 border-r border-slate-100">GURU</td>
                     <td className="py-1.5 px-3 text-emerald-700 font-medium border-r border-slate-100">Guru</td>
-                    <td className="py-1.5 px-3 font-mono font-bold text-purple-700 bg-purple-50/40">SMP50-GURU-1940 (Otomatis)</td>
+                    <td className="py-1.5 px-3 font-mono font-bold text-purple-700 bg-purple-50/40">G5001 (Otomatis 5 Digit)</td>
                   </tr>
                 </tbody>
               </table>
@@ -619,9 +676,9 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
             {/* Download CSV (.csv) */}
             <button
               type="button"
-              onClick={handleDownloadCsvTemplate}
+              onClick={() => handleDownloadCsvTemplate(',')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-colors"
-              title="Unduh file format CSV kompatibel Excel"
+              title="Unduh file format CSV (Pemisah Koma ,)"
             >
               <Download className="w-3.5 h-3.5 text-blue-600" />
               <span>Unduh CSV</span>
@@ -696,7 +753,7 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
               type="text"
               value={tableTokenPrefix}
               onChange={(e) => setTableTokenPrefix(e.target.value.toUpperCase())}
-              placeholder="SMP50-"
+              placeholder="S"
               className="w-24 px-2 py-1 text-xs font-mono font-bold uppercase rounded-lg border border-slate-300 bg-white"
             />
             <button

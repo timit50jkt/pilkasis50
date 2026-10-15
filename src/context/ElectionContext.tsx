@@ -89,7 +89,41 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [tokens, setTokens] = useState<VoterToken[]>(() => {
     try {
       const stored = localStorage.getItem(`${STORAGE_KEY}_tokens`);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored) as VoterToken[];
+        const hasOldFormat = parsed.some((t) => t.token && t.token.includes('SMP50-'));
+        if (hasOldFormat) {
+          const classCounts: Record<string, number> = {};
+          return parsed.map((t) => {
+            if (!t.token.includes('SMP50-')) return t;
+            const cat = t.category || 'Siswa';
+            let pfx = 'S';
+            let code = '7A';
+            if (cat === 'Guru' || (t.classGroup || '').toUpperCase().includes('GURU')) {
+              pfx = 'G';
+              code = '50';
+            } else if (cat === 'Tata Usaha' || (t.classGroup || '').toUpperCase().includes('TU')) {
+              pfx = 'T';
+              code = '50';
+            } else if (cat === 'Tendik' || (t.classGroup || '').toUpperCase().includes('TENDIK')) {
+              pfx = 'K';
+              code = '50';
+            } else {
+              pfx = 'S';
+              const clean = (t.classGroup || '7A').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+              code = clean.slice(0, 2) || '7A';
+            }
+            const key = `${pfx}${code}`;
+            classCounts[key] = (classCounts[key] || 0) + 1;
+            const num = String(classCounts[key]).padStart(2, '0');
+            return {
+              ...t,
+              token: `${pfx}${code}${num}`
+            };
+          });
+        }
+        return parsed;
+      }
     } catch {
       // fallback
     }
@@ -111,12 +145,23 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [settings, setSettings] = useState<ElectionSettings>(() => {
     try {
       const stored = localStorage.getItem(`${STORAGE_KEY}_settings`);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          ...parsed,
+          tokenPrefix: parsed.tokenPrefix && !parsed.tokenPrefix.includes('SMP50') ? parsed.tokenPrefix : 'S',
+          tokenLength: 5,
+          totalRegisteredVoters: tokens.length
+        };
+      }
     } catch {
       // fallback
     }
     return {
       ...INITIAL_SETTINGS,
+      tokenPrefix: 'S',
+      tokenLength: 5,
+      totalRegisteredVoters: tokens.length,
       logoUrl: '/src/assets/images/logo_smpn50_jakarta_1792047092022.jpg'
     };
   });
@@ -167,6 +212,13 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // ignore
     }
   }, [candidates, tokens, votes, settings, auditLogs, timeline]);
+
+  // Keep settings.totalRegisteredVoters strictly synchronized with tokens.length (ensuring DPT matches exact voter list)
+  useEffect(() => {
+    if (settings.totalRegisteredVoters !== tokens.length) {
+      setSettings((prev) => ({ ...prev, totalRegisteredVoters: tokens.length }));
+    }
+  }, [tokens.length, settings.totalRegisteredVoters]);
 
   // Attempt to load Supabase if configured in env or settings
   useEffect(() => {
@@ -659,7 +711,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         // Also update totalRegisteredVoters in settings so quick count calculation is immediately synced!
         setSettings((prevSettings) => ({
           ...prevSettings,
-          totalRegisteredVoters: Math.max(prevSettings.totalRegisteredVoters, next.length)
+          totalRegisteredVoters: next.length
         }));
 
         broadcastUpdate(candidates, next, votes, settings, auditLogs);
@@ -807,12 +859,22 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     const newLogs = [logItem];
 
+    const newSettings = { ...settings, totalRegisteredVoters: clearedTokens.length };
     setTokens(clearedTokens);
     setVotes(clearedVotes);
     setAuditLogs(newLogs);
     setLastVoteTime(null);
+    setSettings(newSettings);
 
-    broadcastUpdate(candidates, clearedTokens, clearedVotes, settings, newLogs);
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify(clearedTokens));
+      localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify(clearedVotes));
+      localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(newSettings));
+    } catch {
+      // ignore
+    }
+
+    broadcastUpdate(candidates, clearedTokens, clearedVotes, newSettings, newLogs);
 
     const client = initSupabaseClient();
     if (client) {
@@ -835,15 +897,30 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       timestamp: new Date().toISOString(),
       type: 'system'
     };
+    const defaultSettings: ElectionSettings = {
+      ...INITIAL_SETTINGS,
+      totalRegisteredVoters: initTokens.length
+    };
     setCandidates(CANDIDATE_PAIRS);
     setTokens(initTokens);
     setVotes(initVotes);
-    setSettings(INITIAL_SETTINGS);
+    setSettings(defaultSettings);
     setTimeline(INITIAL_TIMELINE);
     setAuditLogs([logItem]);
     setLastVoteTime(new Date().toISOString());
 
-    broadcastUpdate(CANDIDATE_PAIRS, initTokens, initVotes, INITIAL_SETTINGS, [logItem]);
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_candidates`, JSON.stringify(CANDIDATE_PAIRS));
+      localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify(initTokens));
+      localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify(initVotes));
+      localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(defaultSettings));
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(INITIAL_TIMELINE));
+      localStorage.setItem(`${STORAGE_KEY}_logs`, JSON.stringify([logItem]));
+    } catch {
+      // ignore
+    }
+
+    broadcastUpdate(CANDIDATE_PAIRS, initTokens, initVotes, defaultSettings, [logItem]);
   }, [broadcastUpdate]);
 
   // Update Settings
@@ -931,15 +1008,18 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Reset Voters List (DPT Kosong)
   const resetVotersList = useCallback(() => {
+    const updatedSettings = { ...settings, totalRegisteredVoters: 0 };
     setTokens([]);
     setVotes([]);
     setLastVoteTime(null);
+    setSettings(updatedSettings);
     addAuditLog('DPT Dikosongkan', 'Seluruh daftar pemilih (DPT) dan kotak suara dikosongkan oleh Panitia.', 'config');
-    broadcastUpdate(candidates, [], [], settings, auditLogs);
+    broadcastUpdate(candidates, [], [], updatedSettings, auditLogs);
 
     try {
       localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(updatedSettings));
     } catch {
       // ignore
     }
@@ -954,15 +1034,18 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Reset Status Memilih (Kembalikan status semua token menjadi belum coblos, kosongkan suara)
   const resetTokensVoteStatus = useCallback(() => {
     const unvotedTokens = tokens.map((t) => ({ ...t, isUsed: false, usedAt: undefined }));
+    const updatedSettings = { ...settings, totalRegisteredVoters: unvotedTokens.length };
     setTokens(unvotedTokens);
     setVotes([]);
     setLastVoteTime(null);
+    setSettings(updatedSettings);
     addAuditLog('Status Memilih Direset', 'Semua pemilih dikembalikan statusnya menjadi Belum Memilih dan kotak suara dikosongkan.', 'config');
-    broadcastUpdate(candidates, unvotedTokens, [], settings, auditLogs);
+    broadcastUpdate(candidates, unvotedTokens, [], updatedSettings, auditLogs);
 
     try {
       localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify(unvotedTokens));
       localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify([]));
+      localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(updatedSettings));
     } catch {
       // ignore
     }
@@ -1047,7 +1130,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Compute stats
   const stats = useMemo<ElectionStats>(() => {
     const totalVotes = votes.length;
-    const totalVoters = Math.max(tokens.length, settings.totalRegisteredVoters);
+    const totalVoters = tokens.length;
     const turnoutPercentage = totalVoters > 0 ? Number(((totalVotes / totalVoters) * 100).toFixed(1)) : 0;
 
     const votesPerCandidate: Record<number, number> = {};
@@ -1133,7 +1216,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       byCategory,
       byClass
     };
-  }, [votes, tokens, candidates, settings.totalRegisteredVoters]);
+  }, [votes, tokens, candidates]);
 
   return (
     <ElectionContext.Provider

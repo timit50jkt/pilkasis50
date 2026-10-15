@@ -6,15 +6,15 @@ export const INITIAL_SETTINGS: ElectionSettings = {
   schoolName: 'SMP Negeri 50 Jakarta',
   schoolAddress: 'Jl. Cipinang Muara I No. 57, Jatinegara, Jakarta Timur',
   isOpen: true,
-  totalRegisteredVoters: 720,
+  totalRegisteredVoters: 94,
   adminPin: '5050',
   announcementText: 'Pemungutan suara berlangsung hingga pukul 14:00 WIB. Gunakan token unik Anda dengan bijak dan rahasia.',
   quickCountTitle: 'Quick Count Perhitungan Suara Pemilihan OSIS',
   quickCountSubtitle: 'Pantau perolehan suara resmi secara real-time, transparan, dan akurat.',
   votingTitle: 'Masuk dengan Token Pemilihan',
-  votingSubtitle: 'Gunakan token unik Anda yang telah dibagikan oleh Panitia. Setiap token hanya berlaku satu kali coblos.',
-  tokenPrefix: 'SMP50-',
-  tokenLength: 6
+  votingSubtitle: 'Gunakan token 5 digit unik Anda (contoh: S7A01). Setiap token hanya berlaku satu kali coblos.',
+  tokenPrefix: 'S',
+  tokenLength: 5
 };
 
 export const CANDIDATE_PAIRS: CandidatePair[] = [
@@ -131,7 +131,17 @@ export function generateInitialTokensAndVotes(): { tokens: VoterToken[]; votes: 
   classes.forEach((c) => {
     for (let i = 1; i <= c.count; i++) {
       const padNum = String(i).padStart(2, '0');
-      const tokenStr = `SMP50-${c.name.replace(/\s+/g, '')}-${padNum}${Math.floor(100 + Math.random() * 900)}`;
+      let tokenStr = '';
+      if (c.category === 'Guru') {
+        tokenStr = `G50${padNum}`;
+      } else if (c.category === 'Tata Usaha') {
+        tokenStr = `T50${padNum}`;
+      } else if (c.category === 'Tendik') {
+        tokenStr = `K50${padNum}`;
+      } else {
+        const cleanClass = c.name.replace(/[^A-Z0-9]/gi, '').slice(0, 2);
+        tokenStr = `S${cleanClass}${padNum}`;
+      }
 
       // Simulate roughly 60% of voters have cast their votes to show realistic quick count graph right away
       const isVoted = i <= Math.floor(c.count * 0.65);
