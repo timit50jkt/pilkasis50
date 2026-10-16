@@ -228,16 +228,23 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
                   </div>
                 </div>
 
-                {/* Candidate Image */}
-                <div className="relative w-full h-72 bg-slate-100 overflow-hidden">
+                {/* Candidate Image - Tampil Utuh */}
+                <div className="relative w-full h-72 sm:h-80 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 overflow-hidden flex items-center justify-center p-2">
+                  <img
+                    src={c.posterImage}
+                    alt=""
+                    aria-hidden="true"
+                    referrerPolicy="no-referrer"
+                    className="absolute inset-0 w-full h-full object-cover opacity-25 blur-lg scale-110 pointer-events-none"
+                  />
                   <img
                     src={c.posterImage}
                     alt={`Foto Paslon ${c.number}`}
                     referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover object-top"
+                    className="relative z-10 w-full h-full object-contain drop-shadow-xl"
                   />
                   {isSelected && (
-                    <div className="absolute inset-0 bg-blue-900/30 backdrop-blur-[1px] flex items-center justify-center">
+                    <div className="absolute inset-0 z-20 bg-blue-900/40 backdrop-blur-[1px] flex items-center justify-center">
                       <div className="bg-white text-blue-700 font-bold px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-sm">
                         <Check className="w-5 h-5 text-blue-600 stroke-[3]" />
                         <span>Paslon Dipilih</span>
@@ -393,7 +400,8 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
                   setInputToken(e.target.value.toUpperCase());
                   setErrorMessage(null);
                 }}
-                placeholder={`Contoh: ${settings.tokenPrefix || 'SMP50-'}7A-4819`}
+                placeholder="Contoh: S7A01"
+                maxLength={8}
                 className="w-full px-4 py-3 text-base sm:text-lg font-mono tracking-wider uppercase rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent placeholder:text-slate-400"
                 autoComplete="off"
                 spellCheck="false"

@@ -555,11 +555,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   // Handle Single Add Voter
   const handleAddSingleVoter = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanClass = newVoterClass.trim().toUpperCase() || 'UMUM';
-    const pfx = settings.tokenPrefix || 'SMP50-';
+    const cleanClass = newVoterClass.trim().toUpperCase() || '7A';
     const cleanToken =
-      newVoterToken.trim().toUpperCase() ||
-      `${pfx}${cleanClass}-${Math.floor(1000 + Math.random() * 9000)}`;
+      newVoterToken.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') ||
+      makeToken(cleanClass, settings.tokenPrefix);
 
     if (tokens.some((t) => t.token === cleanToken)) {
       showToast(`Token "${cleanToken}" sudah terdaftar di DPT. Gunakan token unik.`);
@@ -650,12 +649,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     showToast(`✓ Template CSV (${delimiter === ';' ? 'Pemisah Titik Koma ;' : 'Pemisah Koma ,'}) berhasil diunduh. Kolom: Nama Lengkap | Kelas/Unit | Jenis DPT.`);
   };
 
-  // Token Generator for Table Rows
-  const makeToken = (classGroup: string, prefixVal?: string) => {
-    const pfx = prefixVal !== undefined ? prefixVal : (tableTokenPrefix || settings.tokenPrefix || 'SMP50-');
-    const cleanClass = (classGroup || 'VOTE').replace(/[^A-Z0-9]/g, '') || 'VOTE';
-    const num = Math.floor(1000 + Math.random() * 9000);
-    return `${pfx}${cleanClass}-${num}`;
+  // Token Generator for Table Rows (Ringkas 5 Digit tanpa minus, contoh: S7A01)
+  const makeToken = (classGroup: string, prefixVal?: string, indexNum?: number) => {
+    let pfx = 'S';
+    const clean = (classGroup || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    let code = '7A';
+    if (clean.includes('GURU')) {
+      pfx = 'G';
+      code = '50';
+    } else if (clean.includes('TU') || clean.includes('TATA')) {
+      pfx = 'T';
+      code = '50';
+    } else if (clean.includes('TENDIK') || clean.includes('STAF') || clean.includes('KARYAWAN')) {
+      pfx = 'K';
+      code = '50';
+    } else if (clean.length >= 2) {
+      code = clean.slice(0, 2);
+    } else if (clean.length === 1) {
+      code = clean + '0';
+    }
+
+    if (prefixVal && prefixVal.length > 0 && !['GURU', 'TU', 'TENDIK'].some((k) => clean.includes(k))) {
+      pfx = prefixVal.replace(/[^A-Z0-9]/gi, '').charAt(0).toUpperCase() || 'S';
+    }
+
+    const numStr =
+      indexNum !== undefined && indexNum > 0
+        ? String(indexNum % 100 === 0 ? 99 : indexNum % 100).padStart(2, '0')
+        : String(Math.floor(1 + Math.random() * 99)).padStart(2, '0');
+
+    return `${pfx}${code}${numStr}`.toUpperCase().slice(0, 5);
   };
 
   // Convert raw text (CSV, TSV, Semicolon) into Table rows with proper delimiter & quote support
@@ -1965,38 +1988,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <div className="p-3.5 bg-purple-50/50 rounded-xl border border-purple-100 space-y-3 sm:col-span-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-purple-900 block">
-                          Format Otomatis Generator Token:
+                          Format Otomatis Generator Token (5 Digit Ringkas Tanpa -):
                         </span>
-                        <span className="text-[11px] text-purple-700 font-mono font-semibold">
-                          Pratinjau: {schoolForm.tokenPrefix || 'SMP50-'}7A-1234
+                        <span className="text-[11px] text-purple-700 font-mono font-bold bg-purple-100 px-2 py-0.5 rounded">
+                          Pratinjau: {(schoolForm.tokenPrefix || 'S').charAt(0)}7A01
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-slate-700 mb-1">
-                            Awalan / Prefix Token Bawaan
+                            Awalan / Prefix Huruf Token
                           </label>
                           <input
                             type="text"
+                            maxLength={2}
                             value={schoolForm.tokenPrefix}
-                            onChange={(e) => setSchoolForm({ ...schoolForm, tokenPrefix: e.target.value.toUpperCase() })}
-                            placeholder="SMP50- (atau OSIS-, VOTE-)"
-                            className="w-full p-2.5 text-xs border rounded-lg font-mono bg-white uppercase"
+                            onChange={(e) => setSchoolForm({ ...schoolForm, tokenPrefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') })}
+                            placeholder="S (Siswa: S7A01, Guru: G5001, TU: T5001)"
+                            className="w-full p-2.5 text-xs border rounded-lg font-mono bg-white uppercase font-bold"
                           />
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-slate-700 mb-1">
-                            Panjang Digit Angka Acak
+                            Format Standar Sistem
                           </label>
-                          <select
-                            value={schoolForm.tokenLength}
-                            onChange={(e) => setSchoolForm({ ...schoolForm, tokenLength: Number(e.target.value) })}
-                            className="w-full p-2.5 text-xs border rounded-lg bg-white"
-                          >
-                            <option value={4}>4 Digit (contoh: 1234)</option>
-                            <option value={5}>5 Digit (contoh: 12345)</option>
-                            <option value={6}>6 Digit (contoh: 123456)</option>
-                          </select>
+                          <div className="p-2.5 text-xs font-medium text-slate-700 bg-white rounded-lg border border-slate-200">
+                            5 Digit Huruf & Angka (Contoh: S7A01, S8B05, G5001)
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2742,7 +2760,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         <TableImportModal
           isOpen={showImportModal}
           onClose={() => setShowImportModal(false)}
-          defaultPrefix={settings.tokenPrefix || "SMP50-"}
+          defaultPrefix={settings.tokenPrefix || "S"}
           onSaveVoters={(newVoters, replaceAll) => {
             importVoters(newVoters, replaceAll);
             setShowImportModal(false);
@@ -2884,12 +2902,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     <button
                       type="button"
                       onClick={() => {
-                        const prefix = settings.tokenPrefix || 'SMP50-';
-                        const cleanClass = (editingVoter.classGroup || 'VOTE').replace(/[^A-Z0-9]/g, '');
-                        const randomNum = Math.floor(1000 + Math.random() * 9000);
+                        const newToken = makeToken(editingVoter.classGroup, settings.tokenPrefix);
                         setEditingVoter({
                           ...editingVoter,
-                          token: `${prefix}${cleanClass}-${randomNum}`
+                          token: newToken
                         });
                       }}
                       className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold inline-flex items-center gap-1 hover:underline"

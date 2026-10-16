@@ -79,15 +79,24 @@ export const CandidateCards: React.FC<CandidateCardsProps> = ({
                 </div>
               </div>
 
-              {/* Candidate Image */}
-              <div className="relative w-full h-80 bg-slate-100 overflow-hidden">
+              {/* Candidate Image - Tampil Utuh Full Dimension */}
+              <div className="relative w-full h-88 sm:h-96 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 overflow-hidden flex items-center justify-center p-2 group">
+                {/* Subtle ambient backdrop */}
+                <img
+                  src={c.posterImage}
+                  alt=""
+                  aria-hidden="true"
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 w-full h-full object-cover opacity-25 blur-xl scale-110 pointer-events-none"
+                />
+                {/* Full dimension image (tampil utuh) */}
                 <img
                   src={c.posterImage}
                   alt={`Foto Resmi Paslon ${c.number}`}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover object-top"
+                  className="relative z-10 w-full h-full object-contain drop-shadow-2xl transition-transform duration-300 group-hover:scale-[1.02]"
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent p-4 text-white">
+                <div className="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-slate-950/95 via-slate-950/60 to-transparent p-4 text-white">
                   <div className="text-lg font-bold">
                     {c.chairman.name} & {c.viceChairman.name}
                   </div>

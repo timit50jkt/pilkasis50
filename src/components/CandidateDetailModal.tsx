@@ -36,30 +36,45 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({ cand
           </button>
         </div>
 
-        {/* Poster & Slogan */}
-        <div className="flex flex-col sm:flex-row gap-5 items-center bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-          <div className="relative w-36 h-48 rounded-lg overflow-hidden shrink-0 border border-slate-200 shadow-xs">
+        {/* Poster & Slogan - Tampil Utuh Penuh */}
+        <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
+          <div className="relative w-48 sm:w-56 h-64 sm:h-72 rounded-xl overflow-hidden shrink-0 bg-slate-950 flex items-center justify-center p-1.5 shadow-md border border-slate-300">
             <img
               src={candidate.posterImage}
-              alt={candidate.chairman.name}
+              alt=""
+              aria-hidden="true"
               referrerPolicy="no-referrer"
-              className="w-full h-full object-cover object-top"
+              className="absolute inset-0 w-full h-full object-cover opacity-30 blur-lg scale-110 pointer-events-none"
             />
-            <div className="absolute top-1.5 left-1.5 bg-blue-700 text-white font-extrabold text-xs px-2 py-0.5 rounded shadow-xs">
-              {candidate.number}
+            <img
+              src={candidate.posterImage}
+              alt={`Foto Resmi Paslon ${candidate.number}`}
+              referrerPolicy="no-referrer"
+              className="relative z-10 w-full h-full object-contain drop-shadow-md"
+            />
+            <div className="absolute top-2 left-2 z-20 bg-blue-700 text-white font-extrabold text-xs px-2.5 py-1 rounded-md shadow-xs">
+              Nomor {candidate.number}
             </div>
           </div>
 
-          <div className="space-y-2 text-center sm:text-left">
+          <div className="space-y-3 text-center sm:text-left flex-1">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest block">
               Tagline Kampanye
             </span>
-            <p className="text-base font-bold text-slate-800 italic">
+            <p className="text-base sm:text-lg font-bold text-slate-900 italic leading-snug">
               "{candidate.tagline}"
             </p>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Mewakili aspirasi siswa dan berkomitmen membawa SMP Negeri 50 Jakarta berprestasi, berkarakter, dan bersahabat bagi seluruh warga sekolah.
-            </p>
+            <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-600 leading-relaxed space-y-1">
+              <div className="font-semibold text-slate-800">
+                Ketua: {candidate.chairman.name} ({candidate.chairman.class})
+              </div>
+              <div className="font-semibold text-slate-800">
+                Wakil Ketua: {candidate.viceChairman.name} ({candidate.viceChairman.class})
+              </div>
+              <p className="pt-1 text-slate-500">
+                Mewakili aspirasi siswa dan berkomitmen membawa SMP Negeri 50 Jakarta berprestasi, berkarakter, dan bersahabat bagi seluruh warga sekolah.
+              </p>
+            </div>
           </div>
         </div>
 

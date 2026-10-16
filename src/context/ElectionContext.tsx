@@ -91,11 +91,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const stored = localStorage.getItem(`${STORAGE_KEY}_tokens`);
       if (stored) {
         const parsed = JSON.parse(stored) as VoterToken[];
-        const hasOldFormat = parsed.some((t) => t.token && t.token.includes('SMP50-'));
+        const hasOldFormat = parsed.some((t) => t.token && (t.token.includes('-') || t.token.includes('SMP50') || t.token.length > 5));
         if (hasOldFormat) {
           const classCounts: Record<string, number> = {};
           return parsed.map((t) => {
-            if (!t.token.includes('SMP50-')) return t;
+            if (t.token && !t.token.includes('-') && !t.token.includes('SMP50') && t.token.length === 5) return t;
             const cat = t.category || 'Siswa';
             let pfx = 'S';
             let code = '7A';
@@ -105,7 +105,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             } else if (cat === 'Tata Usaha' || (t.classGroup || '').toUpperCase().includes('TU')) {
               pfx = 'T';
               code = '50';
-            } else if (cat === 'Tendik' || (t.classGroup || '').toUpperCase().includes('TENDIK')) {
+            } else if (cat === 'Tendik' || (t.classGroup || '').toUpperCase().includes('TENDIK') || (t.classGroup || '').toUpperCase().includes('STAF')) {
               pfx = 'K';
               code = '50';
             } else {
@@ -115,10 +115,10 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             }
             const key = `${pfx}${code}`;
             classCounts[key] = (classCounts[key] || 0) + 1;
-            const num = String(classCounts[key]).padStart(2, '0');
+            const num = String(classCounts[key] % 100 === 0 ? 99 : classCounts[key] % 100).padStart(2, '0');
             return {
               ...t,
-              token: `${pfx}${code}${num}`
+              token: `${pfx}${code}${num}`.toUpperCase().slice(0, 5)
             };
           });
         }
@@ -289,7 +289,33 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [settings.supabaseUrl, settings.supabaseAnonKey]);
 
-  // Broadcast updates to other browser tabs
+  // Sync state to backend server so changes immediately propagate to HP, tablets & other computers
+  const syncToServer = useCallback(
+    (payload: {
+      candidates?: CandidatePair[];
+      tokens?: VoterToken[];
+      votes?: VoteRecord[];
+      settings?: ElectionSettings;
+      auditLogs?: AuditLogItem[];
+      timeline?: TimelineItem[];
+      lastVoteTime?: string | null;
+    }) => {
+      try {
+        fetch('/api/election/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch((err) => {
+          console.warn('[Sync] Server sync warning:', err);
+        });
+      } catch {
+        // ignore
+      }
+    },
+    []
+  );
+
+  // Broadcast updates to other browser tabs AND to backend server (reaches any device)
   const broadcastUpdate = useCallback(
     (
       newCandidates: CandidatePair[],
@@ -298,6 +324,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       newSettings: ElectionSettings,
       newLogs: AuditLogItem[]
     ) => {
+      // 1. Cross-tab BroadcastChannel on same browser
       if (typeof window !== 'undefined' && window.BroadcastChannel) {
         try {
           const channel = new BroadcastChannel(BROADCAST_NAME);
@@ -317,32 +344,123 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           // ignore
         }
       }
+
+      // 2. Real-Time Multi-Device push to server (reaches HP, tablets, laptops instantly)
+      syncToServer({
+        candidates: newCandidates,
+        tokens: newTokens,
+        votes: newVotes,
+        settings: newSettings,
+        auditLogs: newLogs,
+        lastVoteTime: newVotes.length > 0 ? newVotes[newVotes.length - 1].timestamp : null
+      });
     },
-    []
+    [syncToServer]
   );
 
-  // Cross-tab broadcast listener
+  // Real-Time Multi-Device Sync via Server (SSE + initial state fetch)
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.BroadcastChannel) return;
-    const channel = new BroadcastChannel(BROADCAST_NAME);
+    let isMounted = true;
 
-    channel.onmessage = (event) => {
-      if (event.data && event.data.type === 'SYNC_STATE') {
-        const { newCandidates, newTokens, newVotes, newSettings, newLogs, timestamp } = event.data.payload;
-        if (newCandidates) setCandidates(newCandidates);
-        if (newTokens) setTokens(newTokens);
-        if (newVotes) {
-          setVotes(newVotes);
-          setLastVoteTime(timestamp || new Date().toISOString());
-          audioManager.playVoteBlip();
+    const fetchServerState = async () => {
+      try {
+        const res = await fetch('/api/election/state');
+        if (!res.ok) return;
+        const resJson = await res.json();
+        if (resJson.success && resJson.data && isMounted) {
+          const d = resJson.data;
+          if (d.candidates && Array.isArray(d.candidates)) setCandidates(d.candidates);
+          if (d.tokens && Array.isArray(d.tokens)) setTokens(d.tokens);
+          if (d.votes && Array.isArray(d.votes)) setVotes(d.votes);
+          if (d.settings) setSettings(d.settings);
+          if (d.auditLogs && Array.isArray(d.auditLogs)) setAuditLogs(d.auditLogs);
+          if (d.timeline && Array.isArray(d.timeline)) setTimeline(d.timeline);
+          if (d.lastVoteTime !== undefined) setLastVoteTime(d.lastVoteTime);
         }
-        if (newSettings) setSettings(newSettings);
-        if (newLogs) setAuditLogs(newLogs);
+      } catch (err) {
+        console.warn('Initial server state fetch failed:', err);
       }
     };
 
+    fetchServerState();
+
+    // Setup Server-Sent Events (SSE) for Real-Time Multi-Device updates
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource('/api/election/events');
+
+      eventSource.addEventListener('state_update', (e: MessageEvent) => {
+        try {
+          const updated = JSON.parse(e.data);
+          if (!updated || !isMounted) return;
+          if (updated.candidates) setCandidates(updated.candidates);
+          if (updated.tokens) setTokens(updated.tokens);
+          if (updated.votes) setVotes(updated.votes);
+          if (updated.settings) setSettings(updated.settings);
+          if (updated.auditLogs) setAuditLogs(updated.auditLogs);
+          if (updated.timeline) setTimeline(updated.timeline);
+          if (updated.lastVoteTime !== undefined) setLastVoteTime(updated.lastVoteTime);
+        } catch {
+          // ignore
+        }
+      });
+
+      eventSource.addEventListener('vote_cast', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (!data || !isMounted) return;
+          if (data.state) {
+            if (data.state.tokens) setTokens(data.state.tokens);
+            if (data.state.votes) setVotes(data.state.votes);
+            if (data.state.auditLogs) setAuditLogs(data.state.auditLogs);
+            if (data.state.lastVoteTime !== undefined) setLastVoteTime(data.state.lastVoteTime);
+          }
+          audioManager.playVoteBlip();
+        } catch {
+          // ignore
+        }
+      });
+    } catch (err) {
+      console.warn('EventSource connection error:', err);
+    }
+
+    // Auto-refresh when user switches back to browser or unlocks phone screen
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchServerState();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // Cross-tab broadcast listener (for same browser)
+    let localChannel: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && window.BroadcastChannel) {
+      localChannel = new BroadcastChannel(BROADCAST_NAME);
+      localChannel.onmessage = (event) => {
+        if (event.data && event.data.type === 'SYNC_STATE' && isMounted) {
+          const { newCandidates, newTokens, newVotes, newSettings, newLogs, timestamp } = event.data.payload;
+          if (newCandidates) setCandidates(newCandidates);
+          if (newTokens) setTokens(newTokens);
+          if (newVotes) {
+            setVotes(newVotes);
+            setLastVoteTime(timestamp || new Date().toISOString());
+            audioManager.playVoteBlip();
+          }
+          if (newSettings) setSettings(newSettings);
+          if (newLogs) setAuditLogs(newLogs);
+        }
+      };
+    }
+
     return () => {
-      channel.close();
+      isMounted = false;
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (eventSource) {
+        eventSource.close();
+      }
+      if (localChannel) {
+        localChannel.close();
+      }
     };
   }, []);
 
@@ -371,13 +489,13 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, []);
 
-  // Validate Token
+  // Validate Token (Flexible 5-digit matching without hyphens, e.g. S7A01)
   const validateToken = useCallback(
     (rawToken: string) => {
-      const cleanToken = rawToken.trim().toUpperCase();
+      const cleanToken = (rawToken || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 
       if (!cleanToken) {
-        return { isValid: false, error: 'Silakan masukkan kode token Anda.' };
+        return { isValid: false, error: 'Silakan masukkan kode token 5 digit Anda (contoh: S7A01).' };
       }
 
       if (!settings.isOpen) {
@@ -387,11 +505,15 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         };
       }
 
-      const found = tokens.find((t) => t.token.toUpperCase() === cleanToken);
+      const found = tokens.find(
+        (t) =>
+          t.token.toUpperCase().replace(/[^A-Z0-9]/g, '') === cleanToken ||
+          t.token.toUpperCase() === rawToken.trim().toUpperCase()
+      );
       if (!found) {
         return {
           isValid: false,
-          error: 'Token tidak terdaftar dalam DPT SMPN 50 Jakarta. Harap periksa kembali atau hubungi panitia MPK.'
+          error: `Token "${rawToken.trim().toUpperCase()}" tidak terdaftar dalam DPT SMPN 50 Jakarta. Harap periksa kembali token Anda atau hubungi panitia MPK.`
         };
       }
 
@@ -401,7 +523,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           : 'sebelumnya';
         return {
           isValid: false,
-          error: `Token ini SUDAH DIGUNAKAN untuk memilih pada pukul ${timeFormatted} WIB. Setiap siswa hanya dapat memilih satu kali.`
+          error: `Token ini SUDAH DIGUNAKAN untuk memilih pada pukul ${timeFormatted} WIB. Setiap pemilih hanya dapat memilih satu kali.`
         };
       }
 
@@ -420,6 +542,20 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       const tokenData = validation.tokenData;
+
+      // Atomic server vote call for real-time multi-device synchronization
+      try {
+        fetch('/api/election/vote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenString: tokenData.token, candidateId })
+        }).catch((err) => {
+          console.warn('[Vote] Server call notice:', err);
+        });
+      } catch {
+        // ignore
+      }
+
       const nowIso = new Date().toISOString();
       const receiptNumber = `BUKTI-50-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
 
@@ -743,11 +879,27 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const generateBatchTokens = useCallback(
     (classGroup: string, category: VoterCategory, count: number): VoterToken[] => {
       const newTokens: VoterToken[] = [];
-      const cleanGroup = classGroup.trim().toUpperCase() || 'SISWA';
+      const cleanGroup = (classGroup || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() || '7A';
+      let pfx = 'S';
+      let grpCode = '7A';
+      if (category === 'Guru' || cleanGroup.includes('GURU')) {
+        pfx = 'G';
+        grpCode = '50';
+      } else if (category === 'Tata Usaha' || cleanGroup.includes('TU')) {
+        pfx = 'T';
+        grpCode = '50';
+      } else if (category === 'Tendik' || cleanGroup.includes('TENDIK') || cleanGroup.includes('STAF')) {
+        pfx = 'K';
+        grpCode = '50';
+      } else if (cleanGroup.length >= 2) {
+        grpCode = cleanGroup.slice(0, 2);
+      } else if (cleanGroup.length === 1) {
+        grpCode = cleanGroup + '0';
+      }
 
       for (let i = 1; i <= count; i++) {
-        const randomCode = Math.floor(1000 + Math.random() * 9000);
-        const tokenStr = `SMP50-${cleanGroup}-${randomCode}`;
+        const padNum = String(i % 100 === 0 ? 99 : i % 100).padStart(2, '0');
+        const tokenStr = `${pfx}${grpCode}${padNum}`.toUpperCase().slice(0, 5);
         newTokens.push({
           token: tokenStr,
           voterName: `${category} - ${cleanGroup} #${i}`,
@@ -876,6 +1028,16 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     broadcastUpdate(candidates, clearedTokens, clearedVotes, newSettings, newLogs);
 
+    try {
+      fetch('/api/election/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'reset_all' })
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
+
     const client = initSupabaseClient();
     if (client) {
       safeSupabaseOperation(
@@ -921,6 +1083,16 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     broadcastUpdate(CANDIDATE_PAIRS, initTokens, initVotes, defaultSettings, [logItem]);
+
+    try {
+      fetch('/api/election/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'default_sample' })
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
   }, [broadcastUpdate]);
 
   // Update Settings
@@ -1024,6 +1196,16 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // ignore
     }
 
+    try {
+      fetch('/api/election/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'reset_voters_empty' })
+      }).catch(() => {});
+    } catch {
+      // ignore
+    }
+
     const client = initSupabaseClient();
     if (client) {
       safeSupabaseOperation(client.from('votes').delete().neq('id', 'placeholder'));
@@ -1046,6 +1228,16 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify(unvotedTokens));
       localStorage.setItem(`${STORAGE_KEY}_votes`, JSON.stringify([]));
       localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(updatedSettings));
+    } catch {
+      // ignore
+    }
+
+    try {
+      fetch('/api/election/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'reset_votes_only' })
+      }).catch(() => {});
     } catch {
       // ignore
     }
