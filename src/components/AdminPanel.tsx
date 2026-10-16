@@ -41,7 +41,8 @@ import {
   Clock,
   MapPin,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Sparkles
 } from 'lucide-react';
 
 export interface TableImportRow {
@@ -126,7 +127,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   // When changing editing candidate
   React.useEffect(() => {
     if (activeEditingCandidate) {
-      setCandidateForm(JSON.parse(JSON.stringify(activeEditingCandidate)));
+      const cloned = JSON.parse(JSON.stringify(activeEditingCandidate));
+      if (!cloned.workPrograms || !Array.isArray(cloned.workPrograms)) {
+        cloned.workPrograms = [];
+      }
+      setCandidateForm(cloned);
       setCandidateSaveMsg(null);
     }
   }, [editingCandidateId, candidates]);
@@ -1337,6 +1342,131 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Program Kerja Unggulan Paslon Editor */}
+              <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>Program Kerja Unggulan Paslon No. {candidateForm.number}</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Kelola program kerja unggulan paslon yang akan ditampilkan di Bilik Suara, Profil Paslon, dan Layar Informasi.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const current = candidateForm.workPrograms || [];
+                      setCandidateForm({
+                        ...candidateForm,
+                        workPrograms: [
+                          ...current,
+                          {
+                            title: `Program Kerja Unggulan #${current.length + 1}`,
+                            desc: ''
+                          }
+                        ]
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Tambah Program Kerja</span>
+                  </button>
+                </div>
+
+                {(!candidateForm.workPrograms || candidateForm.workPrograms.length === 0) ? (
+                  <div className="text-center py-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+                    <p className="text-xs text-slate-500 font-medium">Belum ada program kerja unggulan untuk Paslon ini.</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCandidateForm({
+                          ...candidateForm,
+                          workPrograms: [
+                            {
+                              title: 'Program Kerja Unggulan 1',
+                              desc: 'Deskripsi program kerja inovatif untuk memajukan siswa SMPN 50 Jakarta.'
+                            }
+                          ]
+                        });
+                      }}
+                      className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Tambah Program Kerja Pertama</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {candidateForm.workPrograms.map((prog, pIdx) => (
+                      <div
+                        key={pIdx}
+                        className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 transition-colors space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                              {pIdx + 1}
+                            </span>
+                            <span className="text-xs font-bold text-slate-800">
+                              Program Kerja Unggulan #{pIdx + 1}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = (candidateForm.workPrograms || []).filter((_, idx) => idx !== pIdx);
+                              setCandidateForm({ ...candidateForm, workPrograms: updated });
+                            }}
+                            className="inline-flex items-center gap-1 text-[11px] text-rose-600 hover:text-rose-800 font-medium hover:underline p-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Hapus Program</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-semibold text-slate-700">
+                            Nama / Judul Program Kerja
+                          </label>
+                          <input
+                            type="text"
+                            value={prog.title}
+                            onChange={(e) => {
+                              const updated = [...(candidateForm.workPrograms || [])];
+                              updated[pIdx] = { ...updated[pIdx], title: e.target.value };
+                              setCandidateForm({ ...candidateForm, workPrograms: updated });
+                            }}
+                            placeholder="Contoh: Podcast 'Suara Rajawali 50' / Pentas Seni Akbar"
+                            className="w-full p-2 text-xs font-semibold border rounded-lg bg-white border-slate-300 focus:ring-2 focus:ring-blue-600 focus:border-transparent"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-semibold text-slate-700">
+                            Deskripsi & Rincian Kegiatan
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={prog.desc}
+                            onChange={(e) => {
+                              const updated = [...(candidateForm.workPrograms || [])];
+                              updated[pIdx] = { ...updated[pIdx], desc: e.target.value };
+                              setCandidateForm({ ...candidateForm, workPrograms: updated });
+                            }}
+                            placeholder="Jelaskan tujuan kegiatan, target pelaksanaan, dan dampak positif bagi warga sekolah..."
+                            className="w-full p-2 text-xs border rounded-lg bg-white border-slate-300 focus:ring-2 focus:ring-blue-600 focus:border-transparent leading-relaxed"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Submit Button */}

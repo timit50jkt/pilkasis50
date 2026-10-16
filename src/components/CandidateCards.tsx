@@ -148,17 +148,35 @@ export const CandidateCards: React.FC<CandidateCardsProps> = ({
 
                   {/* Work Programs */}
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                      <BookOpen className="w-4 h-4 text-emerald-600" />
-                      <span>Program Kerja Unggulan</span>
+                    <div className="flex items-center justify-between text-slate-900 font-bold text-sm">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-emerald-600" />
+                        <span>Program Kerja Unggulan</span>
+                      </div>
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        {(c.workPrograms || []).length} Program
+                      </span>
                     </div>
                     <div className="space-y-2">
-                      {c.workPrograms.map((prog, pIdx) => (
-                        <div key={pIdx} className="p-2.5 rounded-lg border border-slate-100 bg-slate-50/60 text-xs">
-                          <div className="font-semibold text-slate-800">{prog.title}</div>
-                          <p className="text-slate-500 mt-0.5 text-[11px]">{prog.desc}</p>
-                        </div>
-                      ))}
+                      {(c.workPrograms && c.workPrograms.length > 0) ? (
+                        c.workPrograms.map((prog, pIdx) => (
+                          <div key={pIdx} className="p-2.5 rounded-xl border border-slate-200/80 bg-slate-50/70 hover:bg-slate-50 transition-colors text-xs space-y-1">
+                            <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                                {pIdx + 1}
+                              </span>
+                              <span>{prog.title}</span>
+                            </div>
+                            {prog.desc && (
+                              <p className="text-slate-600 text-[11px] leading-relaxed pl-5.5">{prog.desc}</p>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                          Program kerja unggulan sedang dirumuskan oleh Paslon.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

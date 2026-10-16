@@ -352,13 +352,14 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         votes: newVotes,
         settings: newSettings,
         auditLogs: newLogs,
+        timeline,
         lastVoteTime: newVotes.length > 0 ? newVotes[newVotes.length - 1].timestamp : null
       });
     },
-    [syncToServer]
+    [syncToServer, timeline]
   );
 
-  // Real-Time Multi-Device Sync via Server (SSE + initial state fetch)
+  // Real-Time Multi-Device Sync via Server (SSE + initial state fetch + background fallback poll)
   useEffect(() => {
     let isMounted = true;
 
@@ -384,7 +385,14 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     fetchServerState();
 
-    // Setup Server-Sent Events (SSE) for Real-Time Multi-Device updates
+    // 10-second polling fallback to guarantee 100% sync even on sleep/lock screen mobile devices
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchServerState();
+      }
+    }, 10000);
+
+    // Setup Server-Sent Events (SSE) for Real-Time Multi-Device updates (<50ms)
     let eventSource: EventSource | null = null;
     try {
       eventSource = new EventSource('/api/election/events');
@@ -424,13 +432,17 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.warn('EventSource connection error:', err);
     }
 
-    // Auto-refresh when user switches back to browser or unlocks phone screen
+    // Auto-refresh when user switches back to browser, unlocks phone screen, or comes online
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchServerState();
       }
     };
+    const onOnline = () => {
+      fetchServerState();
+    };
     document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('online', onOnline);
 
     // Cross-tab broadcast listener (for same browser)
     let localChannel: BroadcastChannel | null = null;
@@ -454,7 +466,9 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     return () => {
       isMounted = false;
+      clearInterval(pollInterval);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('online', onOnline);
       if (eventSource) {
         eventSource.close();
       }
@@ -1291,33 +1305,47 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Timeline Management
   const addTimelineItem = useCallback((item: TimelineItem) => {
-    setTimeline((prev) => [...prev, item]);
-    addAuditLog('Agenda Pilkasis Ditambahkan', `Kegiatan "${item.activity}" pada ${item.dayDate} ditambahkan.`, 'config');
-  }, [addAuditLog]);
+    setTimeline((prev) => {
+      const next = [...prev, item];
+      addAuditLog('Agenda Pilkasis Ditambahkan', `Kegiatan "${item.activity}" pada ${item.dayDate} ditambahkan.`, 'config');
+      syncToServer({ timeline: next });
+      return next;
+    });
+  }, [addAuditLog, syncToServer]);
 
   const updateTimelineItem = useCallback((id: string, updated: Partial<TimelineItem>) => {
-    setTimeline((prev) => prev.map((item) => (item.id === id ? { ...item, ...updated } : item)));
-    addAuditLog('Agenda Pilkasis Diperbarui', `Kegiatan timeline ID ${id} berhasil diperbarui.`, 'config');
-  }, [addAuditLog]);
+    setTimeline((prev) => {
+      const next = prev.map((item) => (item.id === id ? { ...item, ...updated } : item));
+      addAuditLog('Agenda Pilkasis Diperbarui', `Kegiatan timeline ID ${id} berhasil diperbarui.`, 'config');
+      syncToServer({ timeline: next });
+      return next;
+    });
+  }, [addAuditLog, syncToServer]);
 
   const deleteTimelineItem = useCallback((id: string) => {
-    setTimeline((prev) => prev.filter((item) => item.id !== id));
-    addAuditLog('Agenda Pilkasis Dihapus', `Tahapan timeline ID ${id} dihapus.`, 'config');
-  }, [addAuditLog]);
+    setTimeline((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      addAuditLog('Agenda Pilkasis Dihapus', `Tahapan timeline ID ${id} dihapus.`, 'config');
+      syncToServer({ timeline: next });
+      return next;
+    });
+  }, [addAuditLog, syncToServer]);
 
   const reorderTimeline = useCallback((startIndex: number, endIndex: number) => {
     setTimeline((prev) => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
       result.splice(endIndex, 0, removed);
+      syncToServer({ timeline: result });
       return result;
     });
-  }, []);
+  }, [syncToServer]);
 
   const resetTimelineToDefault = useCallback(() => {
     setTimeline(INITIAL_TIMELINE);
     addAuditLog('Agenda Pilkasis Direset', 'Timeline proses Pilkasis dipulihkan ke data standar bawaan.', 'config');
-  }, [addAuditLog]);
+    syncToServer({ timeline: INITIAL_TIMELINE });
+  }, [addAuditLog, syncToServer]);
 
   // Compute stats
   const stats = useMemo<ElectionStats>(() => {

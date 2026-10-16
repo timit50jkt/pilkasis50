@@ -106,19 +106,35 @@ export const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({ cand
         </div>
 
         {/* Work programs */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
-            <BookOpen className="w-4 h-4 text-emerald-600" />
-            <span>Program Kerja Utama</span>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-slate-900 font-bold text-sm">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-emerald-600" />
+              <span>Program Kerja Unggulan Paslon</span>
+            </div>
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              {(candidate.workPrograms || []).length} Program
+            </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {candidate.workPrograms.map((p, idx) => (
-              <div key={idx} className="p-3 rounded-xl border border-slate-200 bg-slate-50/70 text-xs space-y-1">
-                <div className="font-bold text-slate-800">{p.title}</div>
-                <p className="text-slate-600 text-[11px] leading-relaxed">{p.desc}</p>
-              </div>
-            ))}
-          </div>
+          {(candidate.workPrograms && candidate.workPrograms.length > 0) ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {candidate.workPrograms.map((p, idx) => (
+                <div key={idx} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors text-xs space-y-1.5">
+                  <div className="font-bold text-slate-800 flex items-center gap-1.5">
+                    <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                      {idx + 1}
+                    </span>
+                    <span>{p.title}</span>
+                  </div>
+                  {p.desc && <p className="text-slate-600 text-[11px] leading-relaxed pl-5.5">{p.desc}</p>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+              Program kerja unggulan sedang dirumuskan oleh Paslon.
+            </p>
+          )}
         </div>
 
         {/* Actions */}
