@@ -241,6 +241,12 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
                     src={c.posterImage}
                     alt={`Foto Paslon ${c.number}`}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        c.number === '02' || c.id === 2
+                          ? '/images/paslon_2_smp50_1792047092389.jpg'
+                          : '/images/paslon_1_smp50_1792047092011.jpg';
+                    }}
                     className="relative z-10 w-full h-full object-contain drop-shadow-xl"
                   />
                   {isSelected && (

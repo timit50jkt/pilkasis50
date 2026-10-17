@@ -14,7 +14,7 @@
         "role": "Calon Wakil Ketua OSIS"
       },
       "tagline": "Bersatu, Berprestasi & Berintegritas",
-      "posterImage": "/src/assets/images/paslon_1_smp50_1792047092011.jpg",
+      "posterImage": "/images/paslon_1_smp50_1792047092011.jpg",
       "color": {
         "primary": "#1d4ed8",
         "accent": "#3b82f6",
@@ -58,7 +58,7 @@
         "role": "Calon Wakil Ketua OSIS"
       },
       "tagline": "Bersama Mewujudkan OSIS SMPN 50 yang Aktif, Inovatif & Berprestasi",
-      "posterImage": "/src/assets/images/paslon_2_smp50_1792047092389.jpg",
+      "posterImage": "/images/paslon_2_smp50_1792047092389.jpg",
       "color": {
         "primary": "#059669",
         "accent": "#10b981",
@@ -1198,7 +1198,7 @@
     "votingSubtitle": "Gunakan token 5 digit unik Anda (contoh: S7A01). Setiap token hanya berlaku satu kali coblos.",
     "tokenPrefix": "S",
     "tokenLength": 5,
-    "logoUrl": "/src/assets/images/logo_smpn50_jakarta_1792047092022.jpg"
+    "logoUrl": "/images/logo_smpn50_jakarta_1792047092022.jpg"
   },
   "auditLogs": [
     {

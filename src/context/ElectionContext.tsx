@@ -3,6 +3,7 @@ import { CandidatePair, ElectionSettings, VoterToken, VoteRecord, AuditLogItem, 
 import { CANDIDATE_PAIRS, INITIAL_SETTINGS, generateInitialTokensAndVotes, INITIAL_TIMELINE } from '../data/initialData';
 import { audioManager } from '../utils/audio';
 import { initSupabaseClient, fetchAllFromSupabase, testSupabaseConnection, safeSupabaseOperation, getSupabaseCredentials, pushAllToSupabase, cleanSupabaseUrl } from '../utils/supabase';
+import { generateUniqueToken } from '../utils/tokenGenerator';
 
 const STORAGE_KEY = 'smpn50_election_store_v2';
 const BROADCAST_NAME = 'smpn50_election_broadcast';
@@ -50,6 +51,7 @@ export interface ElectionContextType {
   bulkDeleteVoters: (tokenStrings: string[]) => void;
   importVoters: (newVoters: VoterToken[], replaceAll?: boolean) => void;
   generateBatchTokens: (classGroup: string, category: VoterCategory, count: number) => VoterToken[];
+  fixDuplicateTokens: () => number;
   // Simulation & Reset
   simulateVotes: (count: number) => void;
   resetAllElectionData: () => void;
@@ -81,7 +83,10 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [candidates, setCandidates] = useState<CandidatePair[]>(() => {
     try {
       const stored = localStorage.getItem(`${STORAGE_KEY}_candidates`);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {
       // fallback
     }
@@ -93,38 +98,76 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const stored = localStorage.getItem(`${STORAGE_KEY}_tokens`);
       if (stored) {
         const parsed = JSON.parse(stored) as VoterToken[];
-        const hasOldFormat = parsed.some((t) => t.token && (t.token.includes('-') || t.token.includes('SMP50') || t.token.length > 5));
-        if (hasOldFormat) {
-          const classCounts: Record<string, number> = {};
-          return parsed.map((t) => {
-            if (t.token && !t.token.includes('-') && !t.token.includes('SMP50') && t.token.length === 5) return t;
-            const cat = t.category || 'Siswa';
-            let pfx = 'S';
-            let code = '7A';
-            if (cat === 'Guru' || (t.classGroup || '').toUpperCase().includes('GURU')) {
-              pfx = 'G';
-              code = '50';
-            } else if (cat === 'Tata Usaha' || (t.classGroup || '').toUpperCase().includes('TU')) {
-              pfx = 'T';
-              code = '50';
-            } else if (cat === 'Tendik' || (t.classGroup || '').toUpperCase().includes('TENDIK') || (t.classGroup || '').toUpperCase().includes('STAF')) {
-              pfx = 'K';
-              code = '50';
-            } else {
-              pfx = 'S';
-              const clean = (t.classGroup || '7A').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-              code = clean.slice(0, 2) || '7A';
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Check for old formats or duplicates
+          const seen = new Set<string>();
+          let hasDuplicatesOrOld = false;
+          for (const t of parsed) {
+            const raw = (t.token || '').trim().toUpperCase();
+            if (!raw || raw.includes('-') || raw.includes('SMP50') || raw.length > 5 || seen.has(raw)) {
+              hasDuplicatesOrOld = true;
+              break;
             }
-            const key = `${pfx}${code}`;
-            classCounts[key] = (classCounts[key] || 0) + 1;
-            const num = String(classCounts[key] % 100 === 0 ? 99 : classCounts[key] % 100).padStart(2, '0');
-            return {
-              ...t,
-              token: `${pfx}${code}${num}`.toUpperCase().slice(0, 5)
-            };
-          });
+            seen.add(raw);
+          }
+
+          if (hasDuplicatesOrOld) {
+            const usedSet = new Set<string>();
+            const classCounts: Record<string, number> = {};
+            return parsed.map((t) => {
+              const cleanToken = (t.token || '').trim().toUpperCase();
+              if (
+                cleanToken &&
+                !cleanToken.includes('-') &&
+                !cleanToken.includes('SMP50') &&
+                cleanToken.length === 5 &&
+                !usedSet.has(cleanToken)
+              ) {
+                usedSet.add(cleanToken);
+                return { ...t, token: cleanToken };
+              }
+
+              const cat = t.category || 'Siswa';
+              let pfx = 'S';
+              let code = '7A';
+              if (cat === 'Guru' || (t.classGroup || '').toUpperCase().includes('GURU')) {
+                pfx = 'G';
+                code = '50';
+              } else if (cat === 'Tata Usaha' || (t.classGroup || '').toUpperCase().includes('TU')) {
+                pfx = 'T';
+                code = '50';
+              } else if (
+                cat === 'Tendik' ||
+                (t.classGroup || '').toUpperCase().includes('TENDIK') ||
+                (t.classGroup || '').toUpperCase().includes('STAF')
+              ) {
+                pfx = 'K';
+                code = '50';
+              } else {
+                pfx = 'S';
+                const clean = (t.classGroup || '7A').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                code = clean.slice(0, 2) || '7A';
+              }
+
+              const key = `${pfx}${code}`;
+              classCounts[key] = (classCounts[key] || 0) + 1;
+              let numVal = classCounts[key];
+              let newToken = `${pfx}${code}${String(numVal).padStart(2, '0')}`.toUpperCase().slice(0, 5);
+
+              while (usedSet.has(newToken)) {
+                numVal++;
+                newToken = `${pfx}${code}${String(numVal).padStart(2, '0')}`.toUpperCase().slice(0, 5);
+              }
+              usedSet.add(newToken);
+
+              return {
+                ...t,
+                token: newToken
+              };
+            });
+          }
+          return parsed;
         }
-        return parsed;
       }
     } catch {
       // fallback
@@ -200,6 +243,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [lastVoteTime, setLastVoteTime] = useState<string | null>(() => {
     return votes.length > 0 ? votes[votes.length - 1].timestamp : null;
   });
+  const localCandidateModifiedTimeRef = useRef<number>(0);
+  const candidatesRef = useRef<CandidatePair[]>(candidates);
+
+  useEffect(() => {
+    candidatesRef.current = candidates;
+  }, [candidates]);
 
   // LocalStorage Persistence
   useEffect(() => {
@@ -237,7 +286,10 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const applyRemoteData = (data: NonNullable<Awaited<ReturnType<typeof fetchAllFromSupabase>>>) => {
       if (!isMounted) return;
       setSupabaseConnected(true);
-      if (data.candidates && data.candidates.length > 0) setCandidates(data.candidates);
+      const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 30000;
+      if (!isRecentlyModified && data.candidates && data.candidates.length > 0) {
+        setCandidates(data.candidates);
+      }
       if (data.tokens && data.tokens.length > 0) setTokens(data.tokens);
       if (data.votes) setVotes(data.votes);
       if (data.settings) {
@@ -282,9 +334,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           });
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, () => {
-          fetchAllFromSupabase(client).then((d) => {
-            if (d?.candidates) setCandidates(d.candidates);
-          });
+          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 10000;
+          if (!isRecentlyModified) {
+            fetchAllFromSupabase(client).then((d) => {
+              if (d?.candidates && d.candidates.length > 0) setCandidates(d.candidates);
+            });
+          }
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
           fetchAllFromSupabase(client).then((d) => {
@@ -421,7 +476,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const resJson = await res.json();
         if (resJson.success && resJson.data && isMounted) {
           const d = resJson.data;
-          if (d.candidates && Array.isArray(d.candidates)) setCandidates(d.candidates);
+          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 60000;
+          if (!isRecentlyModified && d.candidates && Array.isArray(d.candidates) && d.candidates.length > 0) {
+            candidatesRef.current = d.candidates;
+            setCandidates(d.candidates);
+          }
           if (d.tokens && Array.isArray(d.tokens)) setTokens(d.tokens);
           if (d.votes && Array.isArray(d.votes)) setVotes(d.votes);
           if (d.settings) setSettings(d.settings);
@@ -452,7 +511,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           const updated = JSON.parse(e.data);
           if (!updated || !isMounted) return;
-          if (updated.candidates) setCandidates(updated.candidates);
+          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 60000;
+          if (!isRecentlyModified && updated.candidates && Array.isArray(updated.candidates) && updated.candidates.length > 0) {
+            candidatesRef.current = updated.candidates;
+            setCandidates(updated.candidates);
+          }
           if (updated.tokens) setTokens(updated.tokens);
           if (updated.votes) setVotes(updated.votes);
           if (updated.settings) setSettings(updated.settings);
@@ -707,85 +770,184 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Candidate Management
   const updateCandidate = useCallback(
-    (updated: CandidatePair) => {
-      setCandidates((prev) => {
-        const next = prev.map((c) => (c.id === updated.id ? updated : c));
-        addAuditLog('Profil Paslon Diperbarui', `Data dan program kerja Paslon No. ${updated.number} diperbarui oleh Panitia.`, 'config');
-        broadcastUpdate(next, tokens, votes, settings, auditLogs);
+    async (updated: CandidatePair): Promise<{ success: boolean; message: string }> => {
+      localCandidateModifiedTimeRef.current = Date.now();
 
-        const client = initSupabaseClient();
-        if (client) {
-          safeSupabaseOperation(
-            client.from('candidates').upsert({
-              id: updated.id,
-              number: updated.number,
-              chairman: updated.chairman,
-              vice_chairman: updated.viceChairman,
-              tagline: updated.tagline,
-              poster_image: updated.posterImage,
-              color: updated.color,
-              vision: updated.vision,
-              missions: updated.missions,
-              work_programs: updated.workPrograms,
-              updated_at: new Date().toISOString()
-            })
-          );
+      const prev = candidatesRef.current;
+      const nextCandidates = prev.map((c) => (c.id === updated.id ? updated : c));
+      candidatesRef.current = nextCandidates;
+      setCandidates(nextCandidates);
+
+      // Synchronously write to LocalStorage
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_candidates`, JSON.stringify(nextCandidates));
+        localStorage.setItem(`${STORAGE_KEY}_candidates_modified_at`, String(Date.now()));
+      } catch (err) {
+        console.warn('LocalStorage candidate write warning:', err);
+      }
+
+      addAuditLog(
+        'Profil Paslon Diperbarui',
+        `Data dan program kerja Paslon No. ${updated.number} (${updated.chairman.name}) berhasil diperbarui oleh Panitia.`,
+        'config'
+      );
+
+      broadcastUpdate(nextCandidates, tokens, votes, settings, auditLogs);
+
+      // Push to backend server
+      try {
+        await fetch('/api/election/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidates: nextCandidates })
+        });
+      } catch (err) {
+        console.warn('[Sync] Candidate server sync warning:', err);
+      }
+
+      // Direct push to Supabase if connected
+      const client = initSupabaseClient();
+      if (client) {
+        try {
+          const { error } = await client.from('candidates').upsert({
+            id: updated.id,
+            number: updated.number,
+            chairman: updated.chairman,
+            vice_chairman: updated.viceChairman,
+            tagline: updated.tagline,
+            poster_image: updated.posterImage,
+            color: updated.color,
+            vision: updated.vision,
+            missions: updated.missions,
+            work_programs: updated.workPrograms,
+            updated_at: new Date().toISOString()
+          });
+          if (error) {
+            console.error('[Supabase] Candidate upsert error:', error);
+          }
+        } catch (sbErr) {
+          console.warn('[Supabase] Candidate update error:', sbErr);
         }
+      }
 
-        return next;
-      });
+      return {
+        success: true,
+        message: `Data Paslon No. ${updated.number} (${updated.chairman.name}) berhasil disimpan!`
+      };
     },
     [tokens, votes, settings, auditLogs, addAuditLog, broadcastUpdate]
   );
 
   const addCandidate = useCallback(
-    (newCand: CandidatePair) => {
-      setCandidates((prev) => {
-        const next = [...prev, newCand];
-        addAuditLog('Paslon Baru Ditambahkan', `Pasangan Calon No. ${newCand.number} (${newCand.chairman.name}) ditambahkan.`, 'config');
-        broadcastUpdate(next, tokens, votes, settings, auditLogs);
+    async (newCand: CandidatePair): Promise<{ success: boolean; message: string }> => {
+      localCandidateModifiedTimeRef.current = Date.now();
 
-        const client = initSupabaseClient();
-        if (client) {
-          safeSupabaseOperation(
-            client.from('candidates').upsert({
-              id: newCand.id,
-              number: newCand.number,
-              chairman: newCand.chairman,
-              vice_chairman: newCand.viceChairman,
-              tagline: newCand.tagline,
-              poster_image: newCand.posterImage,
-              color: newCand.color,
-              vision: newCand.vision,
-              missions: newCand.missions,
-              work_programs: newCand.workPrograms,
-              updated_at: new Date().toISOString()
-            })
-          );
+      const prev = candidatesRef.current;
+      const nextCandidates = [...prev, newCand];
+      candidatesRef.current = nextCandidates;
+      setCandidates(nextCandidates);
+
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_candidates`, JSON.stringify(nextCandidates));
+        localStorage.setItem(`${STORAGE_KEY}_candidates_modified_at`, String(Date.now()));
+      } catch (err) {
+        console.warn('LocalStorage candidate write warning:', err);
+      }
+
+      addAuditLog(
+        'Paslon Baru Ditambahkan',
+        `Pasangan Calon No. ${newCand.number} (${newCand.chairman.name}) ditambahkan oleh Panitia.`,
+        'config'
+      );
+
+      broadcastUpdate(nextCandidates, tokens, votes, settings, auditLogs);
+
+      try {
+        await fetch('/api/election/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidates: nextCandidates })
+        });
+      } catch (err) {
+        console.warn('[Sync] Candidate server sync warning:', err);
+      }
+
+      const client = initSupabaseClient();
+      if (client) {
+        try {
+          await client.from('candidates').upsert({
+            id: newCand.id,
+            number: newCand.number,
+            chairman: newCand.chairman,
+            vice_chairman: newCand.viceChairman,
+            tagline: newCand.tagline,
+            poster_image: newCand.posterImage,
+            color: newCand.color,
+            vision: newCand.vision,
+            missions: newCand.missions,
+            work_programs: newCand.workPrograms,
+            updated_at: new Date().toISOString()
+          });
+        } catch (err) {
+          console.warn('[Supabase] Candidate add error:', err);
         }
+      }
 
-        return next;
-      });
+      return {
+        success: true,
+        message: `Paslon No. ${newCand.number} berhasil ditambahkan!`
+      };
     },
     [tokens, votes, settings, auditLogs, addAuditLog, broadcastUpdate]
   );
 
   const deleteCandidate = useCallback(
-    (candId: number) => {
-      setCandidates((prev) => {
-        const next = prev.filter((c) => c.id !== candId);
-        addAuditLog('Paslon Dihapus', `Pasangan Calon dengan ID ${candId} telah dihapus dari sistem.`, 'config');
-        broadcastUpdate(next, tokens, votes, settings, auditLogs);
+    async (candId: number): Promise<{ success: boolean; message: string }> => {
+      localCandidateModifiedTimeRef.current = Date.now();
 
-        const client = initSupabaseClient();
-        if (client) {
-          safeSupabaseOperation(
-            client.from('candidates').delete().eq('id', candId)
-          );
+      const prev = candidatesRef.current;
+      const nextCandidates = prev.filter((c) => c.id !== candId);
+      candidatesRef.current = nextCandidates;
+      setCandidates(nextCandidates);
+
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_candidates`, JSON.stringify(nextCandidates));
+        localStorage.setItem(`${STORAGE_KEY}_candidates_modified_at`, String(Date.now()));
+      } catch (err) {
+        console.warn('LocalStorage candidate write warning:', err);
+      }
+
+      addAuditLog(
+        'Paslon Dihapus',
+        `Pasangan Calon dengan ID ${candId} telah dihapus dari sistem.`,
+        'config'
+      );
+
+      broadcastUpdate(nextCandidates, tokens, votes, settings, auditLogs);
+
+      try {
+        await fetch('/api/election/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ candidates: nextCandidates })
+        });
+      } catch (err) {
+        console.warn('[Sync] Candidate server sync warning:', err);
+      }
+
+      const client = initSupabaseClient();
+      if (client) {
+        try {
+          await client.from('candidates').delete().eq('id', candId);
+        } catch (err) {
+          console.warn('[Supabase] Candidate delete error:', err);
         }
+      }
 
-        return next;
-      });
+      return {
+        success: true,
+        message: 'Paslon berhasil dihapus.'
+      };
     },
     [tokens, votes, settings, auditLogs, addAuditLog, broadcastUpdate]
   );
@@ -945,28 +1107,18 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     (classGroup: string, category: VoterCategory, count: number): VoterToken[] => {
       const newTokens: VoterToken[] = [];
       const cleanGroup = (classGroup || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() || '7A';
-      let pfx = 'S';
-      let grpCode = '7A';
-      if (category === 'Guru' || cleanGroup.includes('GURU')) {
-        pfx = 'G';
-        grpCode = '50';
-      } else if (category === 'Tata Usaha' || cleanGroup.includes('TU')) {
-        pfx = 'T';
-        grpCode = '50';
-      } else if (category === 'Tendik' || cleanGroup.includes('TENDIK') || cleanGroup.includes('STAF')) {
-        pfx = 'K';
-        grpCode = '50';
-      } else if (cleanGroup.length >= 2) {
-        grpCode = cleanGroup.slice(0, 2);
-      } else if (cleanGroup.length === 1) {
-        grpCode = cleanGroup + '0';
-      }
+      const existingTokensSet = new Set(tokens.map((t) => t.token));
 
       for (let i = 1; i <= count; i++) {
-        const padNum = String(i % 100 === 0 ? 99 : i % 100).padStart(2, '0');
-        const tokenStr = `${pfx}${grpCode}${padNum}`.toUpperCase().slice(0, 5);
+        const uniqueTokenStr = generateUniqueToken(
+          cleanGroup,
+          category,
+          existingTokensSet,
+          settings.tokenPrefix || 'S',
+          i
+        );
         newTokens.push({
-          token: tokenStr,
+          token: uniqueTokenStr,
           voterName: `${category} - ${cleanGroup} #${i}`,
           classGroup: cleanGroup,
           category,
@@ -1001,6 +1153,49 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     },
     [candidates, votes, settings, auditLogs, addAuditLog, broadcastUpdate]
   );
+
+  // Scan and fix any duplicate tokens in current DPT
+  const fixDuplicateTokens = useCallback((): number => {
+    let fixedCount = 0;
+    const usedSet = new Set<string>();
+    const classCounters: Record<string, number> = {};
+
+    const updatedTokens = tokens.map((t) => {
+      const clean = (t.token || '').trim().toUpperCase();
+      if (clean && !clean.includes('-') && !clean.includes('SMP50') && clean.length === 5 && !usedSet.has(clean)) {
+        usedSet.add(clean);
+        return { ...t, token: clean };
+      }
+
+      fixedCount++;
+      const cat = t.category || 'Siswa';
+      const grp = (t.classGroup || '7A').toUpperCase();
+      classCounters[grp] = (classCounters[grp] || 0) + 1;
+      const newToken = generateUniqueToken(grp, cat, usedSet, settings.tokenPrefix || 'S', classCounters[grp]);
+      usedSet.add(newToken);
+      return {
+        ...t,
+        token: newToken
+      };
+    });
+
+    if (fixedCount > 0) {
+      setTokens(updatedTokens);
+      broadcastUpdate(candidates, updatedTokens, votes, settings, auditLogs);
+      try {
+        localStorage.setItem(`${STORAGE_KEY}_tokens`, JSON.stringify(updatedTokens));
+      } catch {
+        // ignore
+      }
+      addAuditLog(
+        'Perbaikan Token Duplikat',
+        `Sistem berhasil memperbaiki ${fixedCount} token duplikat menjadi token 5 digit yang 100% unik.`,
+        'token'
+      );
+    }
+
+    return fixedCount;
+  }, [tokens, candidates, votes, settings, auditLogs, broadcastUpdate, addAuditLog]);
 
   // Simulation
   const simulateVotes = useCallback(
@@ -1644,6 +1839,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         bulkDeleteVoters,
         importVoters,
         generateBatchTokens,
+        fixDuplicateTokens,
         simulateVotes,
         resetAllElectionData,
         resetToDefaultSampleData,

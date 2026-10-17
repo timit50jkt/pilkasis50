@@ -94,6 +94,12 @@ export const CandidateCards: React.FC<CandidateCardsProps> = ({
                   src={c.posterImage}
                   alt={`Foto Resmi Paslon ${c.number}`}
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src =
+                      c.number === '02' || c.id === 2
+                        ? '/images/paslon_2_smp50_1792047092389.jpg'
+                        : '/images/paslon_1_smp50_1792047092011.jpg';
+                  }}
                   className="relative z-10 w-full h-full object-contain drop-shadow-2xl transition-transform duration-300 group-hover:scale-[1.02]"
                 />
                 <div className="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-slate-950/95 via-slate-950/60 to-transparent p-4 text-white">

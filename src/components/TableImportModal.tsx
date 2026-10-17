@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { VoterToken, VoterCategory } from '../types/election';
+import { generateUniqueToken } from '../utils/tokenGenerator';
 import {
   FileSpreadsheet,
   X,
@@ -56,37 +57,16 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Helper: Token Generator for a Row (Format 5 digit tanpa tanda hubung "-", misal: S7A01)
-  const makeToken = (classGroup: string, prefixVal?: string, indexNum?: number): string => {
-    let pfx = 'S';
-    if (prefixVal && prefixVal.length > 0) {
-      pfx = prefixVal.replace(/[^A-Z0-9]/gi, '').charAt(0).toUpperCase() || 'S';
-    }
-    const clean = (classGroup || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    let code = '7A';
-    if (clean.includes('GURU')) {
-      pfx = 'G';
-      code = '50';
-    } else if (clean.includes('TU') || clean.includes('TATA')) {
-      pfx = 'T';
-      code = '50';
-    } else if (clean.includes('TENDIK') || clean.includes('STAF')) {
-      pfx = 'K';
-      code = '50';
-    } else if (clean.length >= 2) {
-      code = clean.slice(0, 2);
-    } else if (clean.length === 1) {
-      code = clean + '0';
-    } else {
-      code = '7A';
-    }
-
-    const numStr =
-      indexNum !== undefined && indexNum > 0
-        ? String(indexNum % 100 === 0 ? 99 : indexNum % 100).padStart(2, '0')
-        : String(Math.floor(1 + Math.random() * 99)).padStart(2, '0');
-
-    return `${pfx}${code}${numStr}`.toUpperCase().slice(0, 5);
+  // Helper: Token Generator for a Row (Format 5 digit 100% collision-free tanpa minus, misal: S7A01)
+  const makeToken = (classGroup: string, prefixVal?: string, indexNum?: number, customSet?: Set<string>): string => {
+    const usedSet = customSet || new Set([...existingTokens.map((t) => t.token), ...tableRows.map((r) => r.token)]);
+    return generateUniqueToken(
+      classGroup,
+      'Siswa',
+      usedSet,
+      prefixVal || tableTokenPrefix || defaultPrefix || 'S',
+      indexNum
+    );
   };
 
   // Helper to parse category
@@ -216,6 +196,12 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
     const dataLines = hasHeader ? lines.slice(1) : lines;
     const generated: TableImportRow[] = [];
 
+    // CRITICAL: Declare usedSet and classCounters OUTSIDE the loop so each row accumulates unique tokens!
+    const usedSet = new Set<string>();
+    existingTokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+    tableRows.forEach((r) => r.token && usedSet.add(r.token.trim().toUpperCase()));
+    const classCounters: Record<string, number> = {};
+
     dataLines.forEach((line, idx) => {
       // Determine delimiter for this line: Tab > Semicolon > Comma
       let delimiter = ',';
@@ -257,14 +243,26 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
       const customToken = cleanParts[3] ? cleanParts[3].toUpperCase() : '';
 
       const category = parseCategory(rawCategory, classGroup);
-      const token = customToken || makeToken(classGroup, currentPrefix);
+      classCounters[classGroup] = (classCounters[classGroup] || 0) + 1;
+
+      let token = customToken;
+      if (!token || usedSet.has(token)) {
+        token = generateUniqueToken(
+          classGroup,
+          category,
+          usedSet,
+          currentPrefix || tableTokenPrefix || defaultPrefix || 'S',
+          classCounters[classGroup]
+        );
+      }
+      usedSet.add(token.toUpperCase());
 
       generated.push({
         id: `row-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
         name,
         classGroup,
         category,
-        token
+        token: token.toUpperCase()
       });
     });
 
@@ -308,6 +306,10 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
 
           const dataRows = hasHeader ? jsonRows.slice(1) : jsonRows;
           const generated: TableImportRow[] = [];
+          const usedSet = new Set<string>();
+          existingTokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+          tableRows.forEach((r) => r.token && usedSet.add(r.token.trim().toUpperCase()));
+          const classCounters: Record<string, number> = {};
 
           dataRows.forEach((row, idx) => {
             const name = String(row[0] || '').trim();
@@ -317,14 +319,26 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
             const customToken = row[3] ? String(row[3]).trim().toUpperCase() : '';
 
             const category = parseCategory(rawCategory, classGroup);
-            const token = customToken || makeToken(classGroup, tableTokenPrefix);
+            classCounters[classGroup] = (classCounters[classGroup] || 0) + 1;
+
+            let token = customToken;
+            if (!token || usedSet.has(token)) {
+              token = generateUniqueToken(
+                classGroup,
+                category,
+                usedSet,
+                tableTokenPrefix || defaultPrefix || 'S',
+                classCounters[classGroup]
+              );
+            }
+            usedSet.add(token.toUpperCase());
 
             generated.push({
               id: `row-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
               name,
               classGroup,
               category,
-              token
+              token: token.toUpperCase()
             });
           });
 
@@ -435,30 +449,54 @@ export const TableImportModal: React.FC<TableImportModalProps> = ({
 
   // Add 5 Blank Rows
   const handleAdd5BlankRows = () => {
-    const rows: TableImportRow[] = Array.from({ length: 5 }, (_, i) => ({
-      id: `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
-      name: '',
-      classGroup: '7A',
-      category: 'Siswa',
-      token: makeToken('7A', tableTokenPrefix)
-    }));
+    const usedSet = new Set<string>();
+    existingTokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+    tableRows.forEach((r) => r.token && usedSet.add(r.token.trim().toUpperCase()));
+    const classCounters: Record<string, number> = {};
+
+    const rows: TableImportRow[] = Array.from({ length: 5 }, (_, i) => {
+      classCounters['7A'] = (classCounters['7A'] || 0) + 1;
+      const newToken = generateUniqueToken('7A', 'Siswa', usedSet, tableTokenPrefix || defaultPrefix || 'S', classCounters['7A']);
+      usedSet.add(newToken.toUpperCase());
+      return {
+        id: `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        name: '',
+        classGroup: '7A',
+        category: 'Siswa',
+        token: newToken
+      };
+    });
     setTableRows((prev) => [...prev, ...rows]);
   };
 
   // Regenerate all tokens
   const handleRegenerateAllTokens = () => {
     if (tableRows.length === 0) return;
+    const usedSet = new Set<string>();
+    existingTokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+    const classCounters: Record<string, number> = {};
     setTableRows((prev) =>
-      prev.map((r) => ({
-        ...r,
-        token: makeToken(r.classGroup, tableTokenPrefix)
-      }))
+      prev.map((r) => {
+        classCounters[r.classGroup] = (classCounters[r.classGroup] || 0) + 1;
+        const newToken = generateUniqueToken(
+          r.classGroup,
+          r.category,
+          usedSet,
+          tableTokenPrefix || defaultPrefix || 'S',
+          classCounters[r.classGroup]
+        );
+        usedSet.add(newToken.toUpperCase());
+        return {
+          ...r,
+          token: newToken
+        };
+      })
     );
     setUploadFeedback({
       type: 'info',
-      text: `✓ Seluruh token berhasil digenerate ulang dengan awalan "${tableTokenPrefix}".`
+      text: `✓ Seluruh token berhasil digenerate ulang dan dipastikan 100% unik tanpa duplikat.`
     });
-    setTimeout(() => setUploadFeedback(null), 3000);
+    setTimeout(() => setUploadFeedback(null), 3500);
   };
 
   // Calculate summary counts & duplicate check

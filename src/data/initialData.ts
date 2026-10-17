@@ -32,7 +32,7 @@ export const CANDIDATE_PAIRS: CandidatePair[] = [
       role: 'Calon Wakil Ketua OSIS'
     },
     tagline: 'Bersatu, Berprestasi & Berintegritas',
-    posterImage: '/src/assets/images/paslon_1_smp50_1792047092011.jpg',
+    posterImage: '/images/paslon_1_smp50_1792047092011.jpg',
     color: {
       primary: '#1d4ed8', // blue-700
       accent: '#3b82f6',
@@ -76,7 +76,7 @@ export const CANDIDATE_PAIRS: CandidatePair[] = [
       role: 'Calon Wakil Ketua OSIS'
     },
     tagline: 'Bersama Mewujudkan OSIS SMPN 50 yang Aktif, Inovatif & Berprestasi',
-    posterImage: '/src/assets/images/paslon_2_smp50_1792047092389.jpg',
+    posterImage: '/images/paslon_2_smp50_1792047092389.jpg',
     color: {
       primary: '#059669', // emerald-600
       accent: '#10b981',

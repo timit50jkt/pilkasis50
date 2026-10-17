@@ -115,6 +115,13 @@ setInterval(() => {
 async function startServer() {
   const app = express();
 
+  app.use((_req: Request, res: Response, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    next();
+  });
+
   app.use(express.json({ limit: '50mb' }));
 
   // SSE endpoint for live updates across devices
@@ -155,8 +162,9 @@ async function startServer() {
         return;
       }
 
-      if (body.candidates && Array.isArray(body.candidates)) {
+      if (body.candidates && Array.isArray(body.candidates) && body.candidates.length > 0) {
         currentState.candidates = body.candidates;
+        console.log(`[Server] Synced and saved ${body.candidates.length} candidates permanently`);
       }
       if (body.tokens && Array.isArray(body.tokens)) {
         currentState.tokens = body.tokens;

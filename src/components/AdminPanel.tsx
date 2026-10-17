@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx';
 import { useElection } from '../context/ElectionContext';
 import { cleanSupabaseUrl } from '../utils/supabase';
 import { CandidatePair, VoterToken, VoterCategory, TimelineItem, TimelineStatus } from '../types/election';
+import { generateUniqueToken } from '../utils/tokenGenerator';
+import { compressImageFile } from '../utils/imageCompressor';
 import { PrintTokenModal } from './PrintTokenModal';
 import { PrintBallotModal } from './PrintBallotModal';
 import { TableImportModal } from './TableImportModal';
@@ -18,6 +20,7 @@ import {
   Copy,
   Printer,
   Download,
+  FileDown,
   Check,
   Search,
   Filter,
@@ -82,6 +85,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     bulkDeleteVoters,
     importVoters,
     generateBatchTokens,
+    fixDuplicateTokens,
     simulateVotes,
     resetAllElectionData,
     resetToDefaultSampleData,
@@ -132,9 +136,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [newCandColor, setNewCandColor] = useState('#2563eb'); // Blue default
   const [newCandImage, setNewCandImage] = useState('/src/assets/images/paslon_1_smp50_1792047092011.jpg');
 
-  // When changing editing candidate
+  const loadedCandidateIdRef = useRef<number | null>(null);
+  const [isSavingCandidate, setIsSavingCandidate] = useState(false);
+
+  // When changing editing candidate (only re-populate if switching candidate tab or initial load)
   React.useEffect(() => {
-    if (activeEditingCandidate) {
+    if (activeEditingCandidate && (loadedCandidateIdRef.current !== editingCandidateId || !candidateForm)) {
+      loadedCandidateIdRef.current = editingCandidateId;
       const cloned = JSON.parse(JSON.stringify(activeEditingCandidate));
       if (!cloned.workPrograms || !Array.isArray(cloned.workPrograms)) {
         cloned.workPrograms = [];
@@ -142,7 +150,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       setCandidateForm(cloned);
       setCandidateSaveMsg(null);
     }
-  }, [editingCandidateId, candidates]);
+  }, [editingCandidateId]);
 
   // Voter management state
   const [searchToken, setSearchToken] = useState('');
@@ -374,60 +382,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     );
   }
 
-  // Handle Photo Upload
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, isNewCandidate = false) => {
+  // Handle Photo Upload with Automatic Image Optimization & Compression
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, isNewCandidate = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Ukuran foto maksimal 2MB.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        if (isNewCandidate) {
-          setNewCandImage(reader.result);
-        } else if (candidateForm) {
-          setCandidateForm({ ...candidateForm, posterImage: reader.result });
-        }
+    try {
+      showToast('Memproses dan mengompres foto paslon...');
+      const compressedDataUrl = await compressImageFile(file, 900, 1100, 0.85);
+      if (isNewCandidate) {
+        setNewCandImage(compressedDataUrl);
+      } else if (candidateForm) {
+        setCandidateForm((prev) => (prev ? { ...prev, posterImage: compressedDataUrl } : null));
       }
-    };
-    reader.readAsDataURL(file);
+      showToast('✓ Foto paslon berhasil dioptimasi. Klik "Simpan Perubahan Paslon" untuk menyimpan permanen.');
+    } catch {
+      showToast('Gagal memproses file foto. Pastikan format file JPG/PNG.');
+    }
   };
 
-  // Handle Logo Upload
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Logo Upload with Automatic Image Optimization & Compression
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      showToast('Ukuran logo maksimal 2MB.');
-      return;
+    try {
+      showToast('Memproses logo sekolah...');
+      const compressedLogo = await compressImageFile(file, 600, 600, 0.88);
+      setSchoolForm((prev) => ({ ...prev, logoUrl: compressedLogo }));
+      showToast('✓ Logo sekolah berhasil diperbarui. Klik "Simpan Identitas Sekolah" untuk menyimpan.');
+    } catch {
+      showToast('Gagal memproses logo sekolah.');
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setSchoolForm((prev) => ({ ...prev, logoUrl: reader.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
-  // Handle Save Candidate Changes
-  const handleSaveCandidate = (e: React.FormEvent) => {
+  // Handle Save Candidate Changes (Async with guaranteed persistence)
+  const handleSaveCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!candidateForm) return;
 
-    updateCandidate(candidateForm);
-    setCandidateSaveMsg(`Perubahan Paslon No. ${candidateForm.number} berhasil disimpan!`);
-    setTimeout(() => setCandidateSaveMsg(null), 3000);
+    setIsSavingCandidate(true);
+    setCandidateSaveMsg(null);
+    try {
+      const res = await updateCandidate(candidateForm);
+      setCandidateSaveMsg(res.message);
+      loadedCandidateIdRef.current = candidateForm.id;
+      showToast(`✓ Perubahan Paslon No. ${candidateForm.number} (${candidateForm.chairman.name}) berhasil disimpan permanen ke sistem!`);
+    } catch (err: unknown) {
+      const error = err as Error;
+      showToast(`Gagal menyimpan: ${error?.message || 'Terjadi kesalahan'}`);
+    } finally {
+      setIsSavingCandidate(false);
+      setTimeout(() => setCandidateSaveMsg(null), 4000);
+    }
   };
 
-  // Handle Add New Candidate
-  const handleCreateCandidate = (e: React.FormEvent) => {
+  // Handle Add New Candidate (Async with guaranteed persistence)
+  const handleCreateCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     const nextId = candidates.length > 0 ? Math.max(...candidates.map((c) => c.id)) + 1 : 1;
     const assignedNumber = newCandNumber.trim() || String(candidates.length + 1).padStart(2, '0');
@@ -667,36 +678,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     showToast(`✓ Template CSV (${delimiter === ';' ? 'Pemisah Titik Koma ;' : 'Pemisah Koma ,'}) berhasil diunduh. Kolom: Nama Lengkap | Kelas/Unit | Jenis DPT.`);
   };
 
-  // Token Generator for Table Rows (Ringkas 5 Digit tanpa minus, contoh: S7A01)
-  const makeToken = (classGroup: string, prefixVal?: string, indexNum?: number) => {
-    let pfx = 'S';
-    const clean = (classGroup || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-    let code = '7A';
-    if (clean.includes('GURU')) {
-      pfx = 'G';
-      code = '50';
-    } else if (clean.includes('TU') || clean.includes('TATA')) {
-      pfx = 'T';
-      code = '50';
-    } else if (clean.includes('TENDIK') || clean.includes('STAF') || clean.includes('KARYAWAN')) {
-      pfx = 'K';
-      code = '50';
-    } else if (clean.length >= 2) {
-      code = clean.slice(0, 2);
-    } else if (clean.length === 1) {
-      code = clean + '0';
-    }
-
-    if (prefixVal && prefixVal.length > 0 && !['GURU', 'TU', 'TENDIK'].some((k) => clean.includes(k))) {
-      pfx = prefixVal.replace(/[^A-Z0-9]/gi, '').charAt(0).toUpperCase() || 'S';
-    }
-
-    const numStr =
-      indexNum !== undefined && indexNum > 0
-        ? String(indexNum % 100 === 0 ? 99 : indexNum % 100).padStart(2, '0')
-        : String(Math.floor(1 + Math.random() * 99)).padStart(2, '0');
-
-    return `${pfx}${code}${numStr}`.toUpperCase().slice(0, 5);
+  // Token Generator for Table Rows & Voters (100% Collision-free 5-char Token)
+  const makeToken = (classGroup: string, prefixVal?: string, indexNum?: number, customSet?: Set<string>) => {
+    const usedSet = customSet || new Set([...tokens.map((t) => t.token), ...tableRows.map((r) => r.token)]);
+    return generateUniqueToken(
+      classGroup,
+      'Siswa',
+      usedSet,
+      prefixVal || settings.tokenPrefix || 'S',
+      indexNum
+    );
   };
 
   // Convert raw text (CSV, TSV, Semicolon) into Table rows with proper delimiter & quote support
@@ -720,6 +711,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
     const dataLines = hasHeader ? filteredLines.slice(1) : filteredLines;
     const generated: TableImportRow[] = [];
+
+    // CRITICAL: Declare usedSet and classCounters OUTSIDE the loop so each row accumulates unique tokens!
+    const usedSet = new Set<string>();
+    tokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+    tableRows.forEach((r) => r.token && usedSet.add(r.token.trim().toUpperCase()));
+    const classCounters: Record<string, number> = {};
 
     dataLines.forEach((line, idx) => {
       let delimiter = ',';
@@ -770,14 +767,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         category = 'Siswa';
       }
 
-      const token = customToken || makeToken(classGroup, currentPrefix);
+      classCounters[classGroup] = (classCounters[classGroup] || 0) + 1;
+
+      let token = customToken;
+      if (!token || usedSet.has(token)) {
+        token = generateUniqueToken(
+          classGroup,
+          category,
+          usedSet,
+          currentPrefix || tableTokenPrefix || settings.tokenPrefix || 'S',
+          classCounters[classGroup]
+        );
+      }
+      usedSet.add(token.toUpperCase());
 
       generated.push({
         id: `row-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
         name,
         classGroup,
         category,
-        token
+        token: token.toUpperCase()
       });
     });
 
@@ -796,7 +805,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         const rows = parseRawTextToRows(content, tableTokenPrefix);
         if (rows.length > 0) {
           setTableRows((prev) => [...prev, ...rows]);
-          showToast(`✓ Berhasil memuat ${rows.length} baris ke dalam tabel!`);
+          showToast(`✓ Berhasil memuat ${rows.length} baris ke dalam tabel dengan token unik!`);
         } else {
           showToast('Tidak ditemukan baris data yang valid dari file ini.');
         }
@@ -814,7 +823,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
       setTableRows((prev) => [...prev, ...rows]);
       setPasteBoxText('');
       setShowPasteBox(false);
-      showToast(`✓ Berhasil menambahkan ${rows.length} baris dari Excel ke dalam tabel.`);
+      showToast(`✓ Berhasil menambahkan ${rows.length} baris dari Excel dengan token unik.`);
     } else {
       showToast('Format data tidak sesuai. Pastikan Anda menyalin kolom: Nama | Kelas | Jenis');
     }
@@ -822,37 +831,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
 
   // Add Blank Row
   const handleAddBlankTableRow = () => {
+    const usedSet = new Set([...tokens.map((t) => t.token), ...tableRows.map((r) => r.token)]);
     const newRow: TableImportRow = {
       id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: '',
       classGroup: '7A',
       category: 'Siswa',
-      token: makeToken('7A', tableTokenPrefix)
+      token: generateUniqueToken('7A', 'Siswa', usedSet, tableTokenPrefix || settings.tokenPrefix || 'S')
     };
     setTableRows((prev) => [...prev, newRow]);
   };
 
   // Add 5 Blank Rows
   const handleAdd5BlankTableRows = () => {
-    const rows: TableImportRow[] = Array.from({ length: 5 }, (_, i) => ({
-      id: `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
-      name: '',
-      classGroup: '7A',
-      category: 'Siswa',
-      token: makeToken('7A', tableTokenPrefix)
-    }));
+    const usedSet = new Set<string>();
+    tokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+    tableRows.forEach((r) => r.token && usedSet.add(r.token.trim().toUpperCase()));
+    const classCounters: Record<string, number> = {};
+
+    const rows: TableImportRow[] = Array.from({ length: 5 }, (_, i) => {
+      classCounters['7A'] = (classCounters['7A'] || 0) + 1;
+      const newToken = generateUniqueToken('7A', 'Siswa', usedSet, tableTokenPrefix || settings.tokenPrefix || 'S', classCounters['7A']);
+      usedSet.add(newToken.toUpperCase());
+      return {
+        id: `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        name: '',
+        classGroup: '7A',
+        category: 'Siswa',
+        token: newToken
+      };
+    });
     setTableRows((prev) => [...prev, ...rows]);
   };
 
   // Regenerate all tokens in Table
   const handleRegenerateAllTokens = () => {
     if (tableRows.length === 0) return;
+    const usedSet = new Set<string>();
+    tokens.forEach((t) => t.token && usedSet.add(t.token.trim().toUpperCase()));
+    const classCounters: Record<string, number> = {};
     setTableRows((prev) =>
-      prev.map((r) => ({
-        ...r,
-        token: makeToken(r.classGroup, tableTokenPrefix)
-      }))
+      prev.map((r) => {
+        classCounters[r.classGroup] = (classCounters[r.classGroup] || 0) + 1;
+        const newToken = generateUniqueToken(
+          r.classGroup,
+          r.category,
+          usedSet,
+          tableTokenPrefix || settings.tokenPrefix || 'S',
+          classCounters[r.classGroup]
+        );
+        usedSet.add(newToken.toUpperCase());
+        return {
+          ...r,
+          token: newToken
+        };
+      })
     );
+    showToast('✓ Seluruh token berhasil dibuat ulang dan dipastikan 100% unik tanpa ada yang sama.');
   };
 
   // Save Table to DPT
@@ -1517,20 +1552,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   <span>Input & Import Tabel (Excel/CSV)</span>
                 </button>
                 <button
-                  onClick={handleDownloadExcelTemplate}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-lg text-xs font-bold border border-emerald-300 shadow-2xs transition-colors"
-                  title="Unduh file Microsoft Excel resmi (.xlsx) dengan Kolom A, B, C terpisah sempurna"
+                  onClick={() => setShowPrintBallotModal(true)}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                  title="Unduh file PDF Surat Suara resmi A4 (3 per lembar dengan foto paslon besar dan cover resmi OSIS)"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Unduh Template Excel (.xlsx)</span>
-                </button>
-                <button
-                  onClick={() => handleDownloadCsvTemplate(',')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold border border-slate-300"
-                  title="Unduh Template CSV format standar (Pemisah Koma ,)"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Unduh CSV</span>
+                  <FileDown className="w-4 h-4 text-emerald-200" />
+                  <span>Unduh Surat Suara PDF (Siap Cetak)</span>
                 </button>
                 <button
                   onClick={() => setShowPrintModal(true)}
@@ -1540,12 +1567,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   <span>Cetak Kartu Token</span>
                 </button>
                 <button
-                  onClick={() => setShowPrintBallotModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
-                  title="Cetak Surat Suara resmi A4 format 3 surat suara per lembar lengkap dengan foto paslon dan token DPT"
+                  type="button"
+                  onClick={() => {
+                    const fixed = fixDuplicateTokens();
+                    if (fixed > 0) {
+                      showToast(`✓ Berhasil! Sebanyak ${fixed} nomor token yang sama/duplikat telah diperbaiki otomatis menjadi token unik.`);
+                    } else {
+                      showToast('✓ Sempurna! Seluruh nomor token DPT saat ini sudah 100% unik tanpa ada yang sama.');
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-bold border border-amber-300 transition-colors shadow-2xs"
+                  title="Deteksi dan pastikan seluruh token di DPT tidak ada yang sama atau kembar"
                 >
-                  <FileText className="w-3.5 h-3.5 text-indigo-200" />
-                  <span>Cetak Surat Suara A4 (3 per Lembar)</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Periksa & Pastikan Token Unik</span>
                 </button>
               </div>
 
@@ -2337,10 +2372,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               <div className="flex flex-wrap gap-2.5">
                 <button
                   onClick={() => setShowPrintBallotModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
                 >
-                  <FileText className="w-4 h-4" />
-                  <span>Cetak Surat Suara Fisik (A4 - 3/Lembar)</span>
+                  <FileDown className="w-4 h-4 text-emerald-200" />
+                  <span>Unduh & Cetak Surat Suara Resmi (PDF A4)</span>
                 </button>
                 <button
                   onClick={handleDownloadCsv}

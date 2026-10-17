@@ -144,6 +144,12 @@ export const ProjectorMode: React.FC<ProjectorModeProps> = ({ onExit }) => {
                       src={c.posterImage}
                       alt={c.chairman.name}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src =
+                          c.number === '02' || c.id === 2
+                            ? '/images/paslon_2_smp50_1792047092389.jpg'
+                            : '/images/paslon_1_smp50_1792047092011.jpg';
+                      }}
                       className="w-full h-full object-cover object-top"
                     />
                     <div
