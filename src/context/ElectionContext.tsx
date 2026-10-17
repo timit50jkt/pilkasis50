@@ -470,15 +470,22 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       // 2. Real-Time Multi-Device push to server (reaches HP, tablets, laptops instantly)
-      syncToServer({
+      const payload: Record<string, unknown> = {
         candidates: c,
         tokens: t,
         votes: v,
         settings: s,
         auditLogs: l,
-        timeline: tm,
         lastVoteTime: v.length > 0 ? v[v.length - 1].timestamp : null
-      });
+      };
+
+      // CRITICAL: Only include timeline when it was explicitly modified to prevent stale overwrites from other devices
+      if (newTimeline) {
+        payload.timeline = newTimeline;
+        payload.isTimelineExplicitUpdate = true;
+      }
+
+      syncToServer(payload);
     },
     [syncToServer]
   );
@@ -515,10 +522,15 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             auditLogsRef.current = d.auditLogs;
             setAuditLogs(d.auditLogs);
           }
-          const isTimelineRecentlyModified = Date.now() - localTimelineModifiedTimeRef.current < 45000;
+          const isTimelineRecentlyModified = Date.now() - localTimelineModifiedTimeRef.current < 2000;
           if (!isTimelineRecentlyModified && d.timeline && Array.isArray(d.timeline) && d.timeline.length > 0) {
             timelineRef.current = d.timeline;
             setTimeline(d.timeline);
+            try {
+              localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(d.timeline));
+            } catch {
+              // ignore
+            }
           }
           if (d.lastVoteTime !== undefined) setLastVoteTime(d.lastVoteTime);
         }
@@ -566,10 +578,15 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             auditLogsRef.current = updated.auditLogs;
             setAuditLogs(updated.auditLogs);
           }
-          const isTimelineRecentlyModified = Date.now() - localTimelineModifiedTimeRef.current < 45000;
+          const isTimelineRecentlyModified = Date.now() - localTimelineModifiedTimeRef.current < 2000;
           if (!isTimelineRecentlyModified && updated.timeline && Array.isArray(updated.timeline) && updated.timeline.length > 0) {
             timelineRef.current = updated.timeline;
             setTimeline(updated.timeline);
+            try {
+              localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(updated.timeline));
+            } catch {
+              // ignore
+            }
           }
           if (updated.lastVoteTime !== undefined) setLastVoteTime(updated.lastVoteTime);
         } catch {
@@ -1695,7 +1712,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timeline: next })
-    }).catch(console.warn);
+    })
+      .then(() => {
+        localTimelineModifiedTimeRef.current = 0;
+      })
+      .catch(console.warn);
 
     const client = initSupabaseClient();
     if (client) {
@@ -1735,7 +1756,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timeline: next })
-    }).catch(console.warn);
+    })
+      .then(() => {
+        localTimelineModifiedTimeRef.current = 0;
+      })
+      .catch(console.warn);
 
     const client = initSupabaseClient();
     if (client) {
@@ -1777,7 +1802,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timeline: next })
-    }).catch(console.warn);
+    })
+      .then(() => {
+        localTimelineModifiedTimeRef.current = 0;
+      })
+      .catch(console.warn);
 
     const client = initSupabaseClient();
     if (client) {
@@ -1806,7 +1835,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timeline: result })
-    }).catch(console.warn);
+    })
+      .then(() => {
+        localTimelineModifiedTimeRef.current = 0;
+      })
+      .catch(console.warn);
 
     const client = initSupabaseClient();
     if (client) {
@@ -1846,7 +1879,11 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ timeline: INITIAL_TIMELINE })
-    }).catch(console.warn);
+    })
+      .then(() => {
+        localTimelineModifiedTimeRef.current = 0;
+      })
+      .catch(console.warn);
 
     const client = initSupabaseClient();
     if (client) {

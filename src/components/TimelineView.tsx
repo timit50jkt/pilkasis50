@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useElection } from '../context/ElectionContext';
 import { TimelineItem, TimelineStatus } from '../types/election';
 import {
@@ -32,16 +32,34 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'timeline' | 'table'>('timeline');
 
+  // Normalize each item's status to strictly 'completed' | 'ongoing' | 'upcoming'
+  const normalizedTimeline = useMemo(() => {
+    return timeline.map((item) => {
+      const s = String(item.status || '').trim().toLowerCase();
+      let status: TimelineStatus = 'upcoming';
+      if (s === 'completed' || s === 'selesai') {
+        status = 'completed';
+      } else if (s === 'ongoing' || s === 'sedang berlangsung' || s === 'berlangsung') {
+        status = 'ongoing';
+      } else {
+        status = 'upcoming';
+      }
+      return { ...item, status };
+    });
+  }, [timeline]);
+
+  // Guaranteed synchronized counts across Selesai + Sedang Berlangsung + Akan Datang === Total
+  const totalCount = normalizedTimeline.length;
+  const completedCount = normalizedTimeline.filter((t) => t.status === 'completed').length;
+  const ongoingCount = normalizedTimeline.filter((t) => t.status === 'ongoing').length;
+  const upcomingCount = normalizedTimeline.filter((t) => t.status === 'upcoming').length;
+  const activeItem = normalizedTimeline.find((t) => t.status === 'ongoing');
+
   // Filter items
-  const filteredTimeline = timeline.filter((item) => {
+  const filteredTimeline = normalizedTimeline.filter((item) => {
     if (filterStatus === 'all') return true;
     return item.status === filterStatus;
   });
-
-  const completedCount = timeline.filter((t) => t.status === 'completed').length;
-  const ongoingCount = timeline.filter((t) => t.status === 'ongoing').length;
-  const upcomingCount = timeline.filter((t) => t.status === 'upcoming').length;
-  const activeItem = timeline.find((t) => t.status === 'ongoing');
 
   const getStatusBadge = (status: TimelineStatus) => {
     switch (status) {
@@ -92,25 +110,31 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             </p>
           </div>
 
-          {/* Quick Metrics */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center min-w-[90px]">
+          {/* Quick Metrics: All 4 synchronized boxes (Total = Selesai + Berlangsung + Akan Datang) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 shrink-0">
+            <div className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-center min-w-[78px]">
               <div className="text-xl font-bold text-slate-800 tabular-nums">
-                {timeline.length}
+                {totalCount}
               </div>
               <div className="text-[11px] font-medium text-slate-500">Total Tahapan</div>
             </div>
-            <div className="px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl text-center min-w-[90px]">
+            <div className="px-3.5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-center min-w-[78px]">
               <div className="text-xl font-bold text-emerald-700 tabular-nums">
                 {completedCount}
               </div>
               <div className="text-[11px] font-medium text-emerald-700">Selesai</div>
             </div>
-            <div className="px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-center min-w-[90px]">
+            <div className="px-3.5 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-center min-w-[78px]">
               <div className="text-xl font-bold text-blue-700 tabular-nums">
                 {ongoingCount}
               </div>
-              <div className="text-[11px] font-medium text-blue-700">Berjalan</div>
+              <div className="text-[11px] font-medium text-blue-700">Berlangsung</div>
+            </div>
+            <div className="px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center min-w-[78px]">
+              <div className="text-xl font-bold text-amber-700 tabular-nums">
+                {upcomingCount}
+              </div>
+              <div className="text-[11px] font-medium text-amber-700">Akan Datang</div>
             </div>
           </div>
         </div>
@@ -172,7 +196,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
-            Semua Tahapan ({timeline.length})
+            Semua Tahapan ({totalCount})
           </button>
           <button
             onClick={() => setFilterStatus('ongoing')}

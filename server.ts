@@ -13,7 +13,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Dev server in AI Studio MUST always run on port 3000
 const portArgIndex = process.argv.indexOf('--port');
 const cliPort = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? Number(process.argv[portArgIndex + 1]) : null;
-const PORT = cliPort || 3000;
+const PORT = cliPort || Number(process.env.PORT) || 3000;
 
 interface ElectionServerState {
   candidates: CandidatePair[];
@@ -182,9 +182,13 @@ async function startServer() {
       if (body.auditLogs && Array.isArray(body.auditLogs)) {
         currentState.auditLogs = body.auditLogs;
       }
-      if (body.timeline && Array.isArray(body.timeline) && body.timeline.length > 0) {
-        currentState.timeline = body.timeline;
-        console.log(`[Server] Synced and saved ${body.timeline.length} timeline items permanently`);
+      if (body.isTimelineExplicitUpdate && body.timeline && Array.isArray(body.timeline) && body.timeline.length > 0) {
+        currentState.timeline = body.timeline.map((item: any, idx: number) => ({
+          ...item,
+          id: item.id || `timeline-${Date.now()}-${idx}`,
+          status: item.status === 'completed' ? 'completed' : item.status === 'ongoing' ? 'ongoing' : 'upcoming'
+        }));
+        console.log(`[Server] Explicitly synced and saved ${currentState.timeline.length} timeline items permanently`);
       }
       if (body.lastVoteTime !== undefined) {
         currentState.lastVoteTime = body.lastVoteTime;
@@ -209,12 +213,18 @@ async function startServer() {
         return;
       }
 
-      currentState.timeline = timeline;
+      const normalizedTimeline = timeline.map((item: any, idx: number) => ({
+        ...item,
+        id: item.id || `timeline-${Date.now()}-${idx}`,
+        status: item.status === 'completed' ? 'completed' : item.status === 'ongoing' ? 'ongoing' : 'upcoming'
+      }));
+
+      currentState.timeline = normalizedTimeline;
       persistState();
-      console.log(`[Server] Timeline updated with ${timeline.length} items and broadcast to ${sseClients.length} connected devices`);
+      console.log(`[Server] Timeline updated with ${normalizedTimeline.length} items and broadcast to ${sseClients.length} connected devices`);
       broadcast('state_update', currentState);
 
-      res.json({ success: true, count: timeline.length, message: 'Timeline berhasil diperbarui dan disinkronkan ke seluruh device.' });
+      res.json({ success: true, count: normalizedTimeline.length, message: 'Timeline berhasil diperbarui dan disinkronkan ke seluruh device.' });
     } catch (err: unknown) {
       const error = err as Error;
       res.status(500).json({ success: false, error: error.message });
@@ -388,15 +398,16 @@ async function startServer() {
   });
 
   // Vite middleware for development or static build for production
+  let viteInstance: any = null;
   if (!isProduction) {
-    const vite = await createViteServer({
+    viteInstance = await createViteServer({
       server: {
         middlewareMode: true,
         hmr: false
       },
       appType: 'spa'
     });
-    app.use(vite.middlewares);
+    app.use(viteInstance.middlewares);
   } else {
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (_req: Request, res: Response) => {
@@ -404,12 +415,34 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] Quick Count & E-Voting SMPN 50 running at http://0.0.0.0:${PORT} (Production: ${isProduction})`);
   });
+
+  server.on('error', (err: any) => {
+    console.error('[Server] Express listen error:', err);
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[Server] Port ${PORT} is already in use.`);
+    }
+  });
+
+  const cleanup = async () => {
+    console.log('[Server] Shutting down gracefully...');
+    if (viteInstance) {
+      await viteInstance.close().catch(() => {});
+    }
+    server.close(() => {
+      console.log('[Server] Closed HTTP server.');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', cleanup);
+  process.on('SIGINT', cleanup);
 }
 
 startServer().catch((err) => {
   console.error('[Server] Failed to launch server:', err);
   process.exit(1);
 });
+

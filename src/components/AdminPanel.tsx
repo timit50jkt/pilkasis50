@@ -1819,6 +1819,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
+            {/* Rekap Status Timeline (Sinkron 100% dengan Jumlah Tahapan yang Dibuat) */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Tahapan</div>
+                  <div className="text-xl font-black text-slate-900 mt-0.5">{timeline.length}</div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-xs">
+                  All
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Selesai</div>
+                  <div className="text-xl font-black text-emerald-700 mt-0.5">
+                    {timeline.filter((t) => t.status === 'completed').length}
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                  ✓
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-xl border border-blue-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider">Sedang Berlangsung</div>
+                  <div className="text-xl font-black text-blue-700 mt-0.5">
+                    {timeline.filter((t) => t.status === 'ongoing').length}
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs">
+                  ●
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-xl border border-amber-200 shadow-2xs flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Akan Datang</div>
+                  <div className="text-xl font-black text-amber-700 mt-0.5">
+                    {timeline.filter((t) => t.status === 'upcoming').length}
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-xs">
+                  ⏳
+                </div>
+              </div>
+            </div>
+
             {/* List / Table of Timeline Items */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
