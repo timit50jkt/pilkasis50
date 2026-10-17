@@ -19,9 +19,6 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [voteReceipt, setVoteReceipt] = useState<{ receiptNumber: string; timestamp: string; classGroup: string } | null>(null);
 
-  // List of a few available unused tokens for quick testing
-  const unusedSampleTokens = tokens.filter((t) => !t.isUsed).slice(0, 4);
-
   const handleValidateToken = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -34,11 +31,6 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
 
     setActiveVoter(res.tokenData);
     setSelectedCandidateId(null);
-  };
-
-  const handleQuickSelectToken = (tokenStr: string) => {
-    setInputToken(tokenStr);
-    setErrorMessage(null);
   };
 
   const handleConfirmVote = () => {
@@ -431,32 +423,6 @@ export const VotingBooth: React.FC<VotingBoothProps> = ({ onGoToQuickCount, onVi
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
-
-        {/* Quick Testing Helper: Sample Active Tokens */}
-        <div className="pt-4 border-t border-slate-100">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
-            <span className="font-semibold text-slate-700">Token Contoh Siap Pakai (Uji Coba):</span>
-            <span className="text-[11px] text-slate-400">Klik untuk menyalin</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            {unusedSampleTokens.map((t) => (
-              <button
-                key={t.token}
-                type="button"
-                onClick={() => handleQuickSelectToken(t.token)}
-                className="p-2 rounded-lg bg-slate-50 hover:bg-blue-50 hover:border-blue-300 border border-slate-200 text-left transition-colors group"
-              >
-                <div className="font-mono text-xs font-semibold text-slate-800 group-hover:text-blue-700">
-                  {t.token}
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  {t.category} ({t.classGroup})
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Voting Principles */}
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80 text-xs text-slate-600 space-y-2">
