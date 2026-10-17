@@ -244,11 +244,20 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return votes.length > 0 ? votes[votes.length - 1].timestamp : null;
   });
   const localCandidateModifiedTimeRef = useRef<number>(0);
+  const localTimelineModifiedTimeRef = useRef<number>(0);
   const candidatesRef = useRef<CandidatePair[]>(candidates);
+  const timelineRef = useRef<TimelineItem[]>(timeline);
+  const tokensRef = useRef<VoterToken[]>(tokens);
+  const votesRef = useRef<VoteRecord[]>(votes);
+  const settingsRef = useRef<ElectionSettings>(settings);
+  const auditLogsRef = useRef<AuditLogItem[]>(auditLogs);
 
-  useEffect(() => {
-    candidatesRef.current = candidates;
-  }, [candidates]);
+  useEffect(() => { candidatesRef.current = candidates; }, [candidates]);
+  useEffect(() => { timelineRef.current = timeline; }, [timeline]);
+  useEffect(() => { tokensRef.current = tokens; }, [tokens]);
+  useEffect(() => { votesRef.current = votes; }, [votes]);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { auditLogsRef.current = auditLogs; }, [auditLogs]);
 
   // LocalStorage Persistence
   useEffect(() => {
@@ -424,12 +433,20 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Broadcast updates to other browser tabs AND to backend server (reaches any device)
   const broadcastUpdate = useCallback(
     (
-      newCandidates: CandidatePair[],
-      newTokens: VoterToken[],
-      newVotes: VoteRecord[],
-      newSettings: ElectionSettings,
-      newLogs: AuditLogItem[]
+      newCandidates?: CandidatePair[],
+      newTokens?: VoterToken[],
+      newVotes?: VoteRecord[],
+      newSettings?: ElectionSettings,
+      newLogs?: AuditLogItem[],
+      newTimeline?: TimelineItem[]
     ) => {
+      const c = newCandidates ?? candidatesRef.current;
+      const t = newTokens ?? tokensRef.current;
+      const v = newVotes ?? votesRef.current;
+      const s = newSettings ?? settingsRef.current;
+      const l = newLogs ?? auditLogsRef.current;
+      const tm = newTimeline ?? timelineRef.current;
+
       // 1. Cross-tab BroadcastChannel on same browser
       if (typeof window !== 'undefined' && window.BroadcastChannel) {
         try {
@@ -437,11 +454,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           channel.postMessage({
             type: 'SYNC_STATE',
             payload: {
-              newCandidates,
-              newTokens,
-              newVotes,
-              newSettings,
-              newLogs,
+              newCandidates: c,
+              newTokens: t,
+              newVotes: v,
+              newSettings: s,
+              newLogs: l,
+              newTimeline: tm,
               timestamp: new Date().toISOString()
             }
           });
@@ -453,16 +471,16 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       // 2. Real-Time Multi-Device push to server (reaches HP, tablets, laptops instantly)
       syncToServer({
-        candidates: newCandidates,
-        tokens: newTokens,
-        votes: newVotes,
-        settings: newSettings,
-        auditLogs: newLogs,
-        timeline,
-        lastVoteTime: newVotes.length > 0 ? newVotes[newVotes.length - 1].timestamp : null
+        candidates: c,
+        tokens: t,
+        votes: v,
+        settings: s,
+        auditLogs: l,
+        timeline: tm,
+        lastVoteTime: v.length > 0 ? v[v.length - 1].timestamp : null
       });
     },
-    [syncToServer, timeline]
+    [syncToServer]
   );
 
   // Real-Time Multi-Device Sync via Server (SSE + initial state fetch + background fallback poll)
@@ -476,16 +494,32 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const resJson = await res.json();
         if (resJson.success && resJson.data && isMounted) {
           const d = resJson.data;
-          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 60000;
+          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 45000;
           if (!isRecentlyModified && d.candidates && Array.isArray(d.candidates) && d.candidates.length > 0) {
             candidatesRef.current = d.candidates;
             setCandidates(d.candidates);
           }
-          if (d.tokens && Array.isArray(d.tokens)) setTokens(d.tokens);
-          if (d.votes && Array.isArray(d.votes)) setVotes(d.votes);
-          if (d.settings) setSettings(d.settings);
-          if (d.auditLogs && Array.isArray(d.auditLogs)) setAuditLogs(d.auditLogs);
-          if (d.timeline && Array.isArray(d.timeline)) setTimeline(d.timeline);
+          if (d.tokens && Array.isArray(d.tokens)) {
+            tokensRef.current = d.tokens;
+            setTokens(d.tokens);
+          }
+          if (d.votes && Array.isArray(d.votes)) {
+            votesRef.current = d.votes;
+            setVotes(d.votes);
+          }
+          if (d.settings) {
+            settingsRef.current = d.settings;
+            setSettings(d.settings);
+          }
+          if (d.auditLogs && Array.isArray(d.auditLogs)) {
+            auditLogsRef.current = d.auditLogs;
+            setAuditLogs(d.auditLogs);
+          }
+          const isTimelineRecentlyModified = Date.now() - localTimelineModifiedTimeRef.current < 45000;
+          if (!isTimelineRecentlyModified && d.timeline && Array.isArray(d.timeline) && d.timeline.length > 0) {
+            timelineRef.current = d.timeline;
+            setTimeline(d.timeline);
+          }
           if (d.lastVoteTime !== undefined) setLastVoteTime(d.lastVoteTime);
         }
       } catch (err) {
@@ -511,16 +545,32 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           const updated = JSON.parse(e.data);
           if (!updated || !isMounted) return;
-          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 60000;
+          const isRecentlyModified = Date.now() - localCandidateModifiedTimeRef.current < 45000;
           if (!isRecentlyModified && updated.candidates && Array.isArray(updated.candidates) && updated.candidates.length > 0) {
             candidatesRef.current = updated.candidates;
             setCandidates(updated.candidates);
           }
-          if (updated.tokens) setTokens(updated.tokens);
-          if (updated.votes) setVotes(updated.votes);
-          if (updated.settings) setSettings(updated.settings);
-          if (updated.auditLogs) setAuditLogs(updated.auditLogs);
-          if (updated.timeline) setTimeline(updated.timeline);
+          if (updated.tokens && Array.isArray(updated.tokens)) {
+            tokensRef.current = updated.tokens;
+            setTokens(updated.tokens);
+          }
+          if (updated.votes && Array.isArray(updated.votes)) {
+            votesRef.current = updated.votes;
+            setVotes(updated.votes);
+          }
+          if (updated.settings) {
+            settingsRef.current = updated.settings;
+            setSettings(updated.settings);
+          }
+          if (updated.auditLogs && Array.isArray(updated.auditLogs)) {
+            auditLogsRef.current = updated.auditLogs;
+            setAuditLogs(updated.auditLogs);
+          }
+          const isTimelineRecentlyModified = Date.now() - localTimelineModifiedTimeRef.current < 45000;
+          if (!isTimelineRecentlyModified && updated.timeline && Array.isArray(updated.timeline) && updated.timeline.length > 0) {
+            timelineRef.current = updated.timeline;
+            setTimeline(updated.timeline);
+          }
           if (updated.lastVoteTime !== undefined) setLastVoteTime(updated.lastVoteTime);
         } catch {
           // ignore
@@ -532,9 +582,18 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const data = JSON.parse(e.data);
           if (!data || !isMounted) return;
           if (data.state) {
-            if (data.state.tokens) setTokens(data.state.tokens);
-            if (data.state.votes) setVotes(data.state.votes);
-            if (data.state.auditLogs) setAuditLogs(data.state.auditLogs);
+            if (data.state.tokens) {
+              tokensRef.current = data.state.tokens;
+              setTokens(data.state.tokens);
+            }
+            if (data.state.votes) {
+              votesRef.current = data.state.votes;
+              setVotes(data.state.votes);
+            }
+            if (data.state.auditLogs) {
+              auditLogsRef.current = data.state.auditLogs;
+              setAuditLogs(data.state.auditLogs);
+            }
             if (data.state.lastVoteTime !== undefined) setLastVoteTime(data.state.lastVoteTime);
           }
           audioManager.playVoteBlip();
@@ -564,16 +623,33 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       localChannel = new BroadcastChannel(BROADCAST_NAME);
       localChannel.onmessage = (event) => {
         if (event.data && event.data.type === 'SYNC_STATE' && isMounted) {
-          const { newCandidates, newTokens, newVotes, newSettings, newLogs, timestamp } = event.data.payload;
-          if (newCandidates) setCandidates(newCandidates);
-          if (newTokens) setTokens(newTokens);
+          const { newCandidates, newTokens, newVotes, newSettings, newLogs, newTimeline, timestamp } = event.data.payload;
+          if (newCandidates) {
+            candidatesRef.current = newCandidates;
+            setCandidates(newCandidates);
+          }
+          if (newTokens) {
+            tokensRef.current = newTokens;
+            setTokens(newTokens);
+          }
           if (newVotes) {
+            votesRef.current = newVotes;
             setVotes(newVotes);
             setLastVoteTime(timestamp || new Date().toISOString());
             audioManager.playVoteBlip();
           }
-          if (newSettings) setSettings(newSettings);
-          if (newLogs) setAuditLogs(newLogs);
+          if (newSettings) {
+            settingsRef.current = newSettings;
+            setSettings(newSettings);
+          }
+          if (newLogs) {
+            auditLogsRef.current = newLogs;
+            setAuditLogs(newLogs);
+          }
+          if (newTimeline) {
+            timelineRef.current = newTimeline;
+            setTimeline(newTimeline);
+          }
         }
       };
     }
@@ -1600,17 +1676,74 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Timeline Management with Server & Supabase sync
   const addTimelineItem = useCallback((item: TimelineItem) => {
-    setTimeline((prev) => {
-      const next = [...prev, item];
-      addAuditLog('Agenda Pilkasis Ditambahkan', `Kegiatan "${item.activity}" pada ${item.dayDate} ditambahkan.`, 'config');
-      syncToServer({ timeline: next });
+    localTimelineModifiedTimeRef.current = Date.now();
+    const prev = timelineRef.current;
+    const next = [...prev, item];
+    timelineRef.current = next;
+    setTimeline(next);
 
-      const client = initSupabaseClient();
-      if (client) {
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+
+    addAuditLog('Agenda Pilkasis Ditambahkan', `Kegiatan "${item.activity}" pada ${item.dayDate} ditambahkan.`, 'config');
+    broadcastUpdate(undefined, undefined, undefined, undefined, undefined, next);
+
+    fetch('/api/election/timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeline: next })
+    }).catch(console.warn);
+
+    const client = initSupabaseClient();
+    if (client) {
+      safeSupabaseOperation(
+        client.from('timeline').upsert({
+          id: item.id,
+          order_index: next.length,
+          time: item.time,
+          day_date: item.dayDate,
+          activity: item.activity,
+          status: item.status,
+          badge_text: item.badgeText,
+          badge_color: item.badgeColor,
+          description: item.description || ''
+        })
+      );
+    }
+  }, [addAuditLog, broadcastUpdate]);
+
+  const updateTimelineItem = useCallback((id: string, updated: Partial<TimelineItem>) => {
+    localTimelineModifiedTimeRef.current = Date.now();
+    const prev = timelineRef.current;
+    const next = prev.map((item) => (item.id === id ? { ...item, ...updated } : item));
+    timelineRef.current = next;
+    setTimeline(next);
+
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+
+    addAuditLog('Agenda Pilkasis Diperbarui', `Kegiatan timeline ID ${id} berhasil diperbarui.`, 'config');
+    broadcastUpdate(undefined, undefined, undefined, undefined, undefined, next);
+
+    fetch('/api/election/timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeline: next })
+    }).catch(console.warn);
+
+    const client = initSupabaseClient();
+    if (client) {
+      const item = next.find((t) => t.id === id);
+      if (item) {
         safeSupabaseOperation(
           client.from('timeline').upsert({
             id: item.id,
-            order_index: next.length,
             time: item.time,
             day_date: item.dayDate,
             activity: item.activity,
@@ -1621,89 +1754,99 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           })
         );
       }
-
-      return next;
-    });
-  }, [addAuditLog, syncToServer]);
-
-  const updateTimelineItem = useCallback((id: string, updated: Partial<TimelineItem>) => {
-    setTimeline((prev) => {
-      const next = prev.map((item) => (item.id === id ? { ...item, ...updated } : item));
-      addAuditLog('Agenda Pilkasis Diperbarui', `Kegiatan timeline ID ${id} berhasil diperbarui.`, 'config');
-      syncToServer({ timeline: next });
-
-      const client = initSupabaseClient();
-      if (client) {
-        const item = next.find((t) => t.id === id);
-        if (item) {
-          safeSupabaseOperation(
-            client.from('timeline').upsert({
-              id: item.id,
-              time: item.time,
-              day_date: item.dayDate,
-              activity: item.activity,
-              status: item.status,
-              badge_text: item.badgeText,
-              badge_color: item.badgeColor,
-              description: item.description || ''
-            })
-          );
-        }
-      }
-
-      return next;
-    });
-  }, [addAuditLog, syncToServer]);
+    }
+  }, [addAuditLog, broadcastUpdate]);
 
   const deleteTimelineItem = useCallback((id: string) => {
-    setTimeline((prev) => {
-      const next = prev.filter((item) => item.id !== id);
-      addAuditLog('Agenda Pilkasis Dihapus', `Tahapan timeline ID ${id} dihapus.`, 'config');
-      syncToServer({ timeline: next });
+    localTimelineModifiedTimeRef.current = Date.now();
+    const prev = timelineRef.current;
+    const next = prev.filter((item) => item.id !== id);
+    timelineRef.current = next;
+    setTimeline(next);
 
-      const client = initSupabaseClient();
-      if (client) {
-        safeSupabaseOperation(client.from('timeline').delete().eq('id', id));
-      }
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
 
-      return next;
-    });
-  }, [addAuditLog, syncToServer]);
+    addAuditLog('Agenda Pilkasis Dihapus', `Tahapan timeline ID ${id} dihapus.`, 'config');
+    broadcastUpdate(undefined, undefined, undefined, undefined, undefined, next);
+
+    fetch('/api/election/timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeline: next })
+    }).catch(console.warn);
+
+    const client = initSupabaseClient();
+    if (client) {
+      safeSupabaseOperation(client.from('timeline').delete().eq('id', id));
+    }
+  }, [addAuditLog, broadcastUpdate]);
 
   const reorderTimeline = useCallback((startIndex: number, endIndex: number) => {
-    setTimeline((prev) => {
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
-      result.splice(endIndex, 0, removed);
-      syncToServer({ timeline: result });
+    localTimelineModifiedTimeRef.current = Date.now();
+    const prev = timelineRef.current;
+    const result = Array.from(prev);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    timelineRef.current = result;
+    setTimeline(result);
 
-      const client = initSupabaseClient();
-      if (client) {
-        safeSupabaseOperation(
-          client.from('timeline').upsert(
-            result.map((item, idx) => ({
-              id: item.id,
-              order_index: idx + 1,
-              time: item.time,
-              day_date: item.dayDate,
-              activity: item.activity,
-              status: item.status,
-              badge_text: item.badgeText,
-              badge_color: item.badgeColor,
-              description: item.description || ''
-            }))
-          )
-        );
-      }
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(result));
+    } catch {
+      // ignore
+    }
 
-      return result;
-    });
-  }, [syncToServer]);
+    broadcastUpdate(undefined, undefined, undefined, undefined, undefined, result);
+
+    fetch('/api/election/timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeline: result })
+    }).catch(console.warn);
+
+    const client = initSupabaseClient();
+    if (client) {
+      safeSupabaseOperation(
+        client.from('timeline').upsert(
+          result.map((item, idx) => ({
+            id: item.id,
+            order_index: idx + 1,
+            time: item.time,
+            day_date: item.dayDate,
+            activity: item.activity,
+            status: item.status,
+            badge_text: item.badgeText,
+            badge_color: item.badgeColor,
+            description: item.description || ''
+          }))
+        )
+      );
+    }
+  }, [broadcastUpdate]);
 
   const resetTimelineToDefault = useCallback(() => {
+    localTimelineModifiedTimeRef.current = Date.now();
+    timelineRef.current = INITIAL_TIMELINE;
     setTimeline(INITIAL_TIMELINE);
+
+    try {
+      localStorage.setItem(`${STORAGE_KEY}_timeline`, JSON.stringify(INITIAL_TIMELINE));
+    } catch {
+      // ignore
+    }
+
     addAuditLog('Agenda Pilkasis Direset', 'Timeline proses Pilkasis dipulihkan ke data standar bawaan.', 'config');
-    syncToServer({ timeline: INITIAL_TIMELINE });
+    broadcastUpdate(undefined, undefined, undefined, undefined, undefined, INITIAL_TIMELINE);
+
+    fetch('/api/election/timeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timeline: INITIAL_TIMELINE })
+    }).catch(console.warn);
 
     const client = initSupabaseClient();
     if (client) {
@@ -1723,7 +1866,7 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         )
       );
     }
-  }, [addAuditLog, syncToServer]);
+  }, [addAuditLog, broadcastUpdate]);
 
   // Compute stats
   const stats = useMemo<ElectionStats>(() => {

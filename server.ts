@@ -182,8 +182,9 @@ async function startServer() {
       if (body.auditLogs && Array.isArray(body.auditLogs)) {
         currentState.auditLogs = body.auditLogs;
       }
-      if (body.timeline && Array.isArray(body.timeline)) {
+      if (body.timeline && Array.isArray(body.timeline) && body.timeline.length > 0) {
         currentState.timeline = body.timeline;
+        console.log(`[Server] Synced and saved ${body.timeline.length} timeline items permanently`);
       }
       if (body.lastVoteTime !== undefined) {
         currentState.lastVoteTime = body.lastVoteTime;
@@ -193,6 +194,27 @@ async function startServer() {
       broadcast('state_update', currentState);
 
       res.json({ success: true, message: 'State synced successfully across all devices' });
+    } catch (err: unknown) {
+      const error = err as Error;
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // POST dedicated timeline endpoint for instant multi-device sync
+  app.post('/api/election/timeline', (req: Request, res: Response) => {
+    try {
+      const { timeline } = req.body;
+      if (!timeline || !Array.isArray(timeline)) {
+        res.status(400).json({ success: false, error: 'Data timeline array wajib dikirim.' });
+        return;
+      }
+
+      currentState.timeline = timeline;
+      persistState();
+      console.log(`[Server] Timeline updated with ${timeline.length} items and broadcast to ${sseClients.length} connected devices`);
+      broadcast('state_update', currentState);
+
+      res.json({ success: true, count: timeline.length, message: 'Timeline berhasil diperbarui dan disinkronkan ke seluruh device.' });
     } catch (err: unknown) {
       const error = err as Error;
       res.status(500).json({ success: false, error: error.message });
