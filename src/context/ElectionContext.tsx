@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { CandidatePair, ElectionSettings, VoterToken, VoteRecord, AuditLogItem, VoterCategory, TimelineItem } from '../types/election';
 import { CANDIDATE_PAIRS, INITIAL_SETTINGS, generateInitialTokensAndVotes, INITIAL_TIMELINE } from '../data/initialData';
 import { audioManager } from '../utils/audio';
@@ -40,9 +40,9 @@ export interface ElectionContextType {
   castVote: (tokenString: string, candidateId: number) => { success: boolean; error?: string; receipt?: { receiptNumber: string; timestamp: string; classGroup: string } };
   toggleElectionStatus: () => void;
   // Candidates Management
-  updateCandidate: (updated: CandidatePair) => void;
-  addCandidate: (candidate: CandidatePair) => void;
-  deleteCandidate: (candidateId: number) => void;
+  updateCandidate: (updated: CandidatePair) => Promise<{ success: boolean; message: string }>;
+  addCandidate: (candidate: CandidatePair) => Promise<{ success: boolean; message: string }>;
+  deleteCandidate: (candidateId: number) => Promise<{ success: boolean; message: string }>;
   // Voter (DPT) Management
   addVoter: (voter: VoterToken) => void;
   updateVoter: (tokenStr: string, updated: Partial<VoterToken>) => void;

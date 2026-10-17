@@ -1,0 +1,1296 @@
+{
+  "candidates": [
+    {
+      "id": 1,
+      "number": "01",
+      "chairman": {
+        "name": "Andra Pratama",
+        "class": "Kelas VIII-A",
+        "role": "Calon Ketua OSIS"
+      },
+      "viceChairman": {
+        "name": "Maya Lestari",
+        "class": "Kelas VII-B",
+        "role": "Calon Wakil Ketua OSIS"
+      },
+      "tagline": "Bersatu, Berprestasi & Berintegritas",
+      "posterImage": "/src/assets/images/paslon_1_smp50_1792047092011.jpg",
+      "color": {
+        "primary": "#1d4ed8",
+        "accent": "#3b82f6",
+        "bgSoft": "#eff6ff",
+        "border": "#bfdbfe",
+        "text": "#1e40af"
+      },
+      "vision": "Mewujudkan OSIS SMPN 50 Jakarta sebagai wadah pengembangan potensi siswa yang berkarakter Pancasila, berintegritas tinggi, kreatif, serta unggul dalam bidang akademik dan non-akademik di tingkat DKI Jakarta.",
+      "missions": [
+        "Menumbuhkan ketakwaan dan toleransi beragama melalui kegiatan keagamaan teratur serta peringatan hari besar keagamaan.",
+        "Mengembangkan minat dan bakat siswa lewat penguatan program ekstrakurikuler serta festival pekan seni dan olahraga (Porseni 50).",
+        "Membangun budaya disiplin, literasi aktif 15 menit, dan kepedulian lingkungan sekolah (Gerakan Sekolah Hijau & Bebas Sampah Plastik).",
+        "Menyediakan kotak aspirasi digital \"Suara 50\" yang transparan untuk menampung kritik dan saran seluruh warga sekolah."
+      ],
+      "workPrograms": [
+        {
+          "title": "Porseni & E-Sport Edukatif \"Fifty Cup\"",
+          "desc": "Kompetisi tahunan cabang olahraga basket, futsal, tari tradisional, dan cerdas cermat antar kelas."
+        },
+        {
+          "title": "Gerakan Sahabat Peduli Siswa",
+          "desc": "Program bimbingan konseling sebaya dan penggalangan bantuan sosial bagi siswa yang membutuhkan."
+        },
+        {
+          "title": "Green School SMPN 50",
+          "desc": "Inisiatif bank sampah kelas dan pemeliharaan taman sekolah secara bergilir setiap Jumat pagi."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "number": "02",
+      "chairman": {
+        "name": "Rafi H.",
+        "class": "Kelas VIII-C",
+        "role": "Calon Ketua OSIS"
+      },
+      "viceChairman": {
+        "name": "Alya N.",
+        "class": "Kelas VII-D",
+        "role": "Calon Wakil Ketua OSIS"
+      },
+      "tagline": "Bersama Mewujudkan OSIS SMPN 50 yang Aktif, Inovatif & Berprestasi",
+      "posterImage": "/src/assets/images/paslon_2_smp50_1792047092389.jpg",
+      "color": {
+        "primary": "#059669",
+        "accent": "#10b981",
+        "bgSoft": "#ecfdf5",
+        "border": "#a7f3d0",
+        "text": "#065f46"
+      },
+      "vision": "Menjadikan OSIS SMPN 50 Jakarta sebagai motor penggerak siswa yang adaptif dengan era digital, berjiwa wirausaha muda, berakhlak mulia, dan berdaya saing dengan semangat gotong royong.",
+      "missions": [
+        "Memanfaatkan teknologi digital dalam publikasi kegiatan siswa melalui siniar (Podcast Siswa 50) dan majalah dinding digital interaktif.",
+        "Meningkatkan keterampilan kepemimpinan (*Student Leadership Training*) untuk pengurus kelas dan perwakilan ekstrakurikuler.",
+        "Menjalin kolaborasi produktif dengan OSIS SMP lain di Jakarta Timur untuk studi banding dan kegiatan sosial bersama.",
+        "Menciptakan lingkungan sekolah yang ramah anak, bebas perundungan (*zero bullying*), dan penuh keakraban antar angkatan."
+      ],
+      "workPrograms": [
+        {
+          "title": "Podcast \"Suara Rajawali 50\"",
+          "desc": "Kanal siniar mingguan membahas prestasi siswa, tips belajar, karya sastra, dan wawancara alumni inspiratif."
+        },
+        {
+          "title": "Peer Tutoring Club",
+          "desc": "Kelompok belajar kolaboratif menjelang Asesmen Sumatif Akhir Semester dan bimbingan lomba OSN/FLS2N."
+        },
+        {
+          "title": "Kampanye Duta Anti-Bullying 50",
+          "desc": "Pelatihan duta damai tiap kelas untuk mendeteksi dini konflik dan menciptakan suasana belajar yang nyaman."
+        }
+      ]
+    }
+  ],
+  "tokens": [
+    {
+      "token": "S7A01",
+      "voterName": "Siswa/i 7A Absen 1",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:50:01.910Z"
+    },
+    {
+      "token": "S7A02",
+      "voterName": "Siswa/i 7A Absen 2",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:27:01.910Z"
+    },
+    {
+      "token": "S7A03",
+      "voterName": "Siswa/i 7A Absen 3",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T04:03:01.910Z"
+    },
+    {
+      "token": "S7A04",
+      "voterName": "Siswa/i 7A Absen 4",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:25:01.910Z"
+    },
+    {
+      "token": "S7A05",
+      "voterName": "Siswa/i 7A Absen 5",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:08:01.910Z"
+    },
+    {
+      "token": "S7A06",
+      "voterName": "Siswa/i 7A Absen 6",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:43:01.910Z"
+    },
+    {
+      "token": "S7A07",
+      "voterName": "Siswa/i 7A Absen 7",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:36:01.910Z"
+    },
+    {
+      "token": "S7A08",
+      "voterName": "Siswa/i 7A Absen 8",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7A09",
+      "voterName": "Siswa/i 7A Absen 9",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7A10",
+      "voterName": "Siswa/i 7A Absen 10",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7A11",
+      "voterName": "Siswa/i 7A Absen 11",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7A12",
+      "voterName": "Siswa/i 7A Absen 12",
+      "classGroup": "7A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7B01",
+      "voterName": "Siswa/i 7B Absen 1",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:21:01.910Z"
+    },
+    {
+      "token": "S7B02",
+      "voterName": "Siswa/i 7B Absen 2",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:28:01.910Z"
+    },
+    {
+      "token": "S7B03",
+      "voterName": "Siswa/i 7B Absen 3",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:42:01.910Z"
+    },
+    {
+      "token": "S7B04",
+      "voterName": "Siswa/i 7B Absen 4",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:17:01.910Z"
+    },
+    {
+      "token": "S7B05",
+      "voterName": "Siswa/i 7B Absen 5",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:14:01.910Z"
+    },
+    {
+      "token": "S7B06",
+      "voterName": "Siswa/i 7B Absen 6",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:02:01.910Z"
+    },
+    {
+      "token": "S7B07",
+      "voterName": "Siswa/i 7B Absen 7",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:02:01.910Z"
+    },
+    {
+      "token": "S7B08",
+      "voterName": "Siswa/i 7B Absen 8",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7B09",
+      "voterName": "Siswa/i 7B Absen 9",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7B10",
+      "voterName": "Siswa/i 7B Absen 10",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7B11",
+      "voterName": "Siswa/i 7B Absen 11",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S7B12",
+      "voterName": "Siswa/i 7B Absen 12",
+      "classGroup": "7B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8A01",
+      "voterName": "Siswa/i 8A Absen 1",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:30:01.910Z"
+    },
+    {
+      "token": "S8A02",
+      "voterName": "Siswa/i 8A Absen 2",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:41:01.910Z"
+    },
+    {
+      "token": "S8A03",
+      "voterName": "Siswa/i 8A Absen 3",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:10:01.910Z"
+    },
+    {
+      "token": "S8A04",
+      "voterName": "Siswa/i 8A Absen 4",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:48:01.910Z"
+    },
+    {
+      "token": "S8A05",
+      "voterName": "Siswa/i 8A Absen 5",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:25:01.910Z"
+    },
+    {
+      "token": "S8A06",
+      "voterName": "Siswa/i 8A Absen 6",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:54:01.910Z"
+    },
+    {
+      "token": "S8A07",
+      "voterName": "Siswa/i 8A Absen 7",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:35:01.910Z"
+    },
+    {
+      "token": "S8A08",
+      "voterName": "Siswa/i 8A Absen 8",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8A09",
+      "voterName": "Siswa/i 8A Absen 9",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8A10",
+      "voterName": "Siswa/i 8A Absen 10",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8A11",
+      "voterName": "Siswa/i 8A Absen 11",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8A12",
+      "voterName": "Siswa/i 8A Absen 12",
+      "classGroup": "8A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8B01",
+      "voterName": "Siswa/i 8B Absen 1",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:25:01.910Z"
+    },
+    {
+      "token": "S8B02",
+      "voterName": "Siswa/i 8B Absen 2",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:41:01.910Z"
+    },
+    {
+      "token": "S8B03",
+      "voterName": "Siswa/i 8B Absen 3",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:26:01.910Z"
+    },
+    {
+      "token": "S8B04",
+      "voterName": "Siswa/i 8B Absen 4",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:04:01.910Z"
+    },
+    {
+      "token": "S8B05",
+      "voterName": "Siswa/i 8B Absen 5",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:28:01.910Z"
+    },
+    {
+      "token": "S8B06",
+      "voterName": "Siswa/i 8B Absen 6",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:23:01.910Z"
+    },
+    {
+      "token": "S8B07",
+      "voterName": "Siswa/i 8B Absen 7",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:47:01.910Z"
+    },
+    {
+      "token": "S8B08",
+      "voterName": "Siswa/i 8B Absen 8",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8B09",
+      "voterName": "Siswa/i 8B Absen 9",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8B10",
+      "voterName": "Siswa/i 8B Absen 10",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8B11",
+      "voterName": "Siswa/i 8B Absen 11",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S8B12",
+      "voterName": "Siswa/i 8B Absen 12",
+      "classGroup": "8B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9A01",
+      "voterName": "Siswa/i 9A Absen 1",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:24:01.910Z"
+    },
+    {
+      "token": "S9A02",
+      "voterName": "Siswa/i 9A Absen 2",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:30:01.910Z"
+    },
+    {
+      "token": "S9A03",
+      "voterName": "Siswa/i 9A Absen 3",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:57:01.910Z"
+    },
+    {
+      "token": "S9A04",
+      "voterName": "Siswa/i 9A Absen 4",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:34:01.910Z"
+    },
+    {
+      "token": "S9A05",
+      "voterName": "Siswa/i 9A Absen 5",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:26:01.910Z"
+    },
+    {
+      "token": "S9A06",
+      "voterName": "Siswa/i 9A Absen 6",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:36:01.910Z"
+    },
+    {
+      "token": "S9A07",
+      "voterName": "Siswa/i 9A Absen 7",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:14:01.910Z"
+    },
+    {
+      "token": "S9A08",
+      "voterName": "Siswa/i 9A Absen 8",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9A09",
+      "voterName": "Siswa/i 9A Absen 9",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9A10",
+      "voterName": "Siswa/i 9A Absen 10",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9A11",
+      "voterName": "Siswa/i 9A Absen 11",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9A12",
+      "voterName": "Siswa/i 9A Absen 12",
+      "classGroup": "9A",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9B01",
+      "voterName": "Siswa/i 9B Absen 1",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:35:01.910Z"
+    },
+    {
+      "token": "S9B02",
+      "voterName": "Siswa/i 9B Absen 2",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:03:01.910Z"
+    },
+    {
+      "token": "S9B03",
+      "voterName": "Siswa/i 9B Absen 3",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:06:01.910Z"
+    },
+    {
+      "token": "S9B04",
+      "voterName": "Siswa/i 9B Absen 4",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:16:01.910Z"
+    },
+    {
+      "token": "S9B05",
+      "voterName": "Siswa/i 9B Absen 5",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:57:01.910Z"
+    },
+    {
+      "token": "S9B06",
+      "voterName": "Siswa/i 9B Absen 6",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:35:01.910Z"
+    },
+    {
+      "token": "S9B07",
+      "voterName": "Siswa/i 9B Absen 7",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:53:01.910Z"
+    },
+    {
+      "token": "S9B08",
+      "voterName": "Siswa/i 9B Absen 8",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9B09",
+      "voterName": "Siswa/i 9B Absen 9",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9B10",
+      "voterName": "Siswa/i 9B Absen 10",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9B11",
+      "voterName": "Siswa/i 9B Absen 11",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "S9B12",
+      "voterName": "Siswa/i 9B Absen 12",
+      "classGroup": "9B",
+      "category": "Siswa",
+      "isUsed": false
+    },
+    {
+      "token": "G5001",
+      "voterName": "Bapak/Ibu Guru #1",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:06:01.910Z"
+    },
+    {
+      "token": "G5002",
+      "voterName": "Bapak/Ibu Guru #2",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:23:01.910Z"
+    },
+    {
+      "token": "G5003",
+      "voterName": "Bapak/Ibu Guru #3",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:08:01.910Z"
+    },
+    {
+      "token": "G5004",
+      "voterName": "Bapak/Ibu Guru #4",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:16:01.910Z"
+    },
+    {
+      "token": "G5005",
+      "voterName": "Bapak/Ibu Guru #5",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:47:01.910Z"
+    },
+    {
+      "token": "G5006",
+      "voterName": "Bapak/Ibu Guru #6",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:58:01.910Z"
+    },
+    {
+      "token": "G5007",
+      "voterName": "Bapak/Ibu Guru #7",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": false
+    },
+    {
+      "token": "G5008",
+      "voterName": "Bapak/Ibu Guru #8",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": false
+    },
+    {
+      "token": "G5009",
+      "voterName": "Bapak/Ibu Guru #9",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": false
+    },
+    {
+      "token": "G5010",
+      "voterName": "Bapak/Ibu Guru #10",
+      "classGroup": "Guru",
+      "category": "Guru",
+      "isUsed": false
+    },
+    {
+      "token": "T5001",
+      "voterName": "Staf Tata Usaha #1",
+      "classGroup": "TU",
+      "category": "Tata Usaha",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:05:01.910Z"
+    },
+    {
+      "token": "T5002",
+      "voterName": "Staf Tata Usaha #2",
+      "classGroup": "TU",
+      "category": "Tata Usaha",
+      "isUsed": true,
+      "usedAt": "2026-10-17T03:32:01.910Z"
+    },
+    {
+      "token": "T5003",
+      "voterName": "Staf Tata Usaha #3",
+      "classGroup": "TU",
+      "category": "Tata Usaha",
+      "isUsed": true,
+      "usedAt": "2026-10-17T00:35:01.910Z"
+    },
+    {
+      "token": "T5004",
+      "voterName": "Staf Tata Usaha #4",
+      "classGroup": "TU",
+      "category": "Tata Usaha",
+      "isUsed": false
+    },
+    {
+      "token": "T5005",
+      "voterName": "Staf Tata Usaha #5",
+      "classGroup": "TU",
+      "category": "Tata Usaha",
+      "isUsed": false
+    },
+    {
+      "token": "T5006",
+      "voterName": "Staf Tata Usaha #6",
+      "classGroup": "TU",
+      "category": "Tata Usaha",
+      "isUsed": false
+    },
+    {
+      "token": "K5001",
+      "voterName": "Tenaga Kependidikan #1",
+      "classGroup": "Tendik",
+      "category": "Tendik",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:15:01.910Z"
+    },
+    {
+      "token": "K5002",
+      "voterName": "Tenaga Kependidikan #2",
+      "classGroup": "Tendik",
+      "category": "Tendik",
+      "isUsed": true,
+      "usedAt": "2026-10-17T01:03:01.910Z"
+    },
+    {
+      "token": "K5003",
+      "voterName": "Tenaga Kependidikan #3",
+      "classGroup": "Tendik",
+      "category": "Tendik",
+      "isUsed": true,
+      "usedAt": "2026-10-17T02:17:01.910Z"
+    },
+    {
+      "token": "K5004",
+      "voterName": "Tenaga Kependidikan #4",
+      "classGroup": "Tendik",
+      "category": "Tendik",
+      "isUsed": false
+    },
+    {
+      "token": "K5005",
+      "voterName": "Tenaga Kependidikan #5",
+      "classGroup": "Tendik",
+      "category": "Tendik",
+      "isUsed": false
+    },
+    {
+      "token": "K5006",
+      "voterName": "Tenaga Kependidikan #6",
+      "classGroup": "Tendik",
+      "category": "Tendik",
+      "isUsed": false
+    }
+  ],
+  "votes": [
+    {
+      "id": "vote-1",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T00:50:01.910Z"
+    },
+    {
+      "id": "vote-2",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T02:27:01.910Z"
+    },
+    {
+      "id": "vote-3",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T04:03:01.910Z"
+    },
+    {
+      "id": "vote-4",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T01:25:01.910Z"
+    },
+    {
+      "id": "vote-5",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T00:08:01.910Z"
+    },
+    {
+      "id": "vote-6",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T01:43:01.910Z"
+    },
+    {
+      "id": "vote-7",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "7A",
+      "timestamp": "2026-10-17T03:36:01.910Z"
+    },
+    {
+      "id": "vote-8",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T00:21:01.910Z"
+    },
+    {
+      "id": "vote-9",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T01:28:01.910Z"
+    },
+    {
+      "id": "vote-10",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T01:42:01.910Z"
+    },
+    {
+      "id": "vote-11",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T02:17:01.910Z"
+    },
+    {
+      "id": "vote-12",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T01:14:01.910Z"
+    },
+    {
+      "id": "vote-13",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T01:02:01.910Z"
+    },
+    {
+      "id": "vote-14",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "7B",
+      "timestamp": "2026-10-17T02:02:01.910Z"
+    },
+    {
+      "id": "vote-15",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T01:30:01.910Z"
+    },
+    {
+      "id": "vote-16",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T02:41:01.910Z"
+    },
+    {
+      "id": "vote-17",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T01:10:01.910Z"
+    },
+    {
+      "id": "vote-18",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T03:48:01.910Z"
+    },
+    {
+      "id": "vote-19",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T00:25:01.910Z"
+    },
+    {
+      "id": "vote-20",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T00:54:01.910Z"
+    },
+    {
+      "id": "vote-21",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8A",
+      "timestamp": "2026-10-17T00:35:01.910Z"
+    },
+    {
+      "id": "vote-22",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T03:25:01.910Z"
+    },
+    {
+      "id": "vote-23",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T02:41:01.910Z"
+    },
+    {
+      "id": "vote-24",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T01:26:01.910Z"
+    },
+    {
+      "id": "vote-25",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T02:04:01.910Z"
+    },
+    {
+      "id": "vote-26",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T02:28:01.910Z"
+    },
+    {
+      "id": "vote-27",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T03:23:01.910Z"
+    },
+    {
+      "id": "vote-28",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "8B",
+      "timestamp": "2026-10-17T03:47:01.910Z"
+    },
+    {
+      "id": "vote-29",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T00:24:01.910Z"
+    },
+    {
+      "id": "vote-30",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T00:30:01.910Z"
+    },
+    {
+      "id": "vote-31",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T03:57:01.910Z"
+    },
+    {
+      "id": "vote-32",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T03:34:01.910Z"
+    },
+    {
+      "id": "vote-33",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T03:26:01.910Z"
+    },
+    {
+      "id": "vote-34",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T01:36:01.910Z"
+    },
+    {
+      "id": "vote-35",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9A",
+      "timestamp": "2026-10-17T03:14:01.910Z"
+    },
+    {
+      "id": "vote-36",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T02:35:01.910Z"
+    },
+    {
+      "id": "vote-37",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T01:03:01.910Z"
+    },
+    {
+      "id": "vote-38",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T02:06:01.910Z"
+    },
+    {
+      "id": "vote-39",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T02:16:01.910Z"
+    },
+    {
+      "id": "vote-40",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T02:57:01.910Z"
+    },
+    {
+      "id": "vote-41",
+      "candidateId": 2,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T02:35:01.910Z"
+    },
+    {
+      "id": "vote-42",
+      "candidateId": 1,
+      "voterCategory": "Siswa",
+      "classGroup": "9B",
+      "timestamp": "2026-10-17T00:53:01.910Z"
+    },
+    {
+      "id": "vote-43",
+      "candidateId": 1,
+      "voterCategory": "Guru",
+      "classGroup": "Guru",
+      "timestamp": "2026-10-17T00:06:01.910Z"
+    },
+    {
+      "id": "vote-44",
+      "candidateId": 2,
+      "voterCategory": "Guru",
+      "classGroup": "Guru",
+      "timestamp": "2026-10-17T00:23:01.910Z"
+    },
+    {
+      "id": "vote-45",
+      "candidateId": 1,
+      "voterCategory": "Guru",
+      "classGroup": "Guru",
+      "timestamp": "2026-10-17T02:08:01.910Z"
+    },
+    {
+      "id": "vote-46",
+      "candidateId": 2,
+      "voterCategory": "Guru",
+      "classGroup": "Guru",
+      "timestamp": "2026-10-17T03:16:01.910Z"
+    },
+    {
+      "id": "vote-47",
+      "candidateId": 1,
+      "voterCategory": "Guru",
+      "classGroup": "Guru",
+      "timestamp": "2026-10-17T01:47:01.910Z"
+    },
+    {
+      "id": "vote-48",
+      "candidateId": 2,
+      "voterCategory": "Guru",
+      "classGroup": "Guru",
+      "timestamp": "2026-10-17T02:58:01.910Z"
+    },
+    {
+      "id": "vote-49",
+      "candidateId": 2,
+      "voterCategory": "Tata Usaha",
+      "classGroup": "TU",
+      "timestamp": "2026-10-17T01:05:01.910Z"
+    },
+    {
+      "id": "vote-50",
+      "candidateId": 1,
+      "voterCategory": "Tata Usaha",
+      "classGroup": "TU",
+      "timestamp": "2026-10-17T03:32:01.910Z"
+    },
+    {
+      "id": "vote-51",
+      "candidateId": 2,
+      "voterCategory": "Tata Usaha",
+      "classGroup": "TU",
+      "timestamp": "2026-10-17T00:35:01.910Z"
+    },
+    {
+      "id": "vote-52",
+      "candidateId": 2,
+      "voterCategory": "Tendik",
+      "classGroup": "Tendik",
+      "timestamp": "2026-10-17T01:15:01.910Z"
+    },
+    {
+      "id": "vote-53",
+      "candidateId": 1,
+      "voterCategory": "Tendik",
+      "classGroup": "Tendik",
+      "timestamp": "2026-10-17T01:03:01.910Z"
+    },
+    {
+      "id": "vote-54",
+      "candidateId": 1,
+      "voterCategory": "Tendik",
+      "classGroup": "Tendik",
+      "timestamp": "2026-10-17T02:17:01.910Z"
+    }
+  ],
+  "settings": {
+    "electionName": "Pemilihan Ketua & Wakil Ketua OSIS",
+    "academicYear": "2024/2025",
+    "schoolName": "SMP Negeri 50 Jakarta",
+    "schoolAddress": "Jl. Cipinang Muara I No. 57, Jatinegara, Jakarta Timur",
+    "isOpen": true,
+    "totalRegisteredVoters": 94,
+    "adminPin": "5050",
+    "announcementText": "Pemungutan suara berlangsung hingga pukul 14:00 WIB. Gunakan token unik Anda dengan bijak dan rahasia.",
+    "quickCountTitle": "Quick Count Perhitungan Suara Pemilihan OSIS",
+    "quickCountSubtitle": "Pantau perolehan suara resmi secara real-time, transparan, dan akurat.",
+    "votingTitle": "Masuk dengan Token Pemilihan",
+    "votingSubtitle": "Gunakan token 5 digit unik Anda (contoh: S7A01). Setiap token hanya berlaku satu kali coblos.",
+    "tokenPrefix": "S",
+    "tokenLength": 5,
+    "logoUrl": "/src/assets/images/logo_smpn50_jakarta_1792047092022.jpg"
+  },
+  "auditLogs": [
+    {
+      "id": "log-init",
+      "action": "Sistem Sinkronisasi Multi-Device Aktif",
+      "timestamp": "2026-10-17T04:03:01.912Z",
+      "details": "Server real-time aktif. Sinkronisasi antar device (HP & Komputer) siap digunakan.",
+      "type": "system"
+    }
+  ],
+  "timeline": [
+    {
+      "id": "timeline-1",
+      "dayDate": "Senin, 07 Oktober 2024",
+      "activity": "Sosialisasi & Pengumuman Tahapan Pilkasis 2024/2025",
+      "description": "Penyampaian tahapan pemilihan, kriteria calon ketua & wakil ketua OSIS saat upacara bendera, serta pembagian edaran ke seluruh kelas VII, VIII, dan IX.",
+      "status": "completed",
+      "time": "07.00 - 08.00 WIB",
+      "location": "Lapangan Upacara SMPN 50 Jakarta"
+    },
+    {
+      "id": "timeline-2",
+      "dayDate": "Rabu - Jumat, 09 - 11 Oktober 2024",
+      "activity": "Pendaftaran & Pengambilan Formulir Bakal Calon",
+      "description": "Pengambilan formulir pendaftaran, pengumpulan berkas portofolio, visi misi, surat persetujuan orang tua, serta surat rekomendasi wali kelas.",
+      "status": "completed",
+      "time": "08.00 - 15.00 WIB",
+      "location": "Ruang Sekretariat MPK SMPN 50"
+    },
+    {
+      "id": "timeline-3",
+      "dayDate": "Senin, 14 Oktober 2024",
+      "activity": "Verifikasi Berkas, Tes Wawancara & Uji Kelayakan",
+      "description": "Pemeriksaan keabsahan dokumen, wawancara kepemimpinan, komitmen kedisiplinan, dan uji kompetensi bersama Kepala Sekolah & Dewan Guru Pembina.",
+      "status": "completed",
+      "time": "09.00 - 14.30 WIB",
+      "location": "Ruang Rapat Guru"
+    },
+    {
+      "id": "timeline-4",
+      "dayDate": "Rabu, 16 Oktober 2024",
+      "activity": "Rapat Pleno Penetapan Paslon & Pengundian Nomor Urut",
+      "description": "Penetapan Pasangan Calon Resmi: Paslon 01 (Andra Pratama & Maya Lestari) dan Paslon 02 (Rafi H. & Alya N.) serta penandatanganan Pakta Integritas Kampanye Damai.",
+      "status": "completed",
+      "time": "13.30 - 15.00 WIB",
+      "location": "Aula Pertemuan Utama"
+    },
+    {
+      "id": "timeline-5",
+      "dayDate": "Kamis - Jumat, 17 - 18 Oktober 2024",
+      "activity": "Masa Kampanye & Debat Terbuka Kandidat Paslon",
+      "description": "Penyampaian visi misi dan program kerja unggulan di hadapan seluruh siswa, orasi bergilir ke ruang kelas, dan debat terbuka antar paslon.",
+      "status": "completed",
+      "time": "07.30 - 11.30 WIB",
+      "location": "Panggung Terbuka & Ruang Kelas"
+    },
+    {
+      "id": "timeline-6",
+      "dayDate": "Senin, 21 Oktober 2024",
+      "activity": "Masa Tenang & Simulasi Teknis Bilik Suara E-Voting",
+      "description": "Pembersihan atribut kampanye di lingkungan sekolah, pembagian token pemilih resmi ke wali kelas, serta uji beban server dan sistem Quick Count.",
+      "status": "completed",
+      "time": "08.00 - 14.00 WIB",
+      "location": "Laboratorium Komputer & Server MPK"
+    },
+    {
+      "id": "timeline-7",
+      "dayDate": "Selasa, 22 Oktober 2024",
+      "activity": "Hari Pemungutan Suara (E-Voting) & Quick Count Real-Time",
+      "description": "Pelaksanaan pencoblosan mandiri menggunakan token unik oleh seluruh siswa Kelas 7, 8, 9, Dewan Guru, dan Tenaga Kependidikan. Hasil rekapitulasi terpantau langsung secara live.",
+      "status": "ongoing",
+      "time": "07.30 - 14.00 WIB",
+      "location": "Bilik Suara Digital (Online / Lab Komputer)"
+    },
+    {
+      "id": "timeline-8",
+      "dayDate": "Rabu, 23 Oktober 2024",
+      "activity": "Sidang Pleno Rekapitulasi Suara & Pengesahan Hasil Pilkasis",
+      "description": "Penandatanganan Berita Acara Rekapitulasi Suara oleh Panitia MPK, Kepala Sekolah, dan Saksi masing-masing Paslon serta pengumuman resmi pemenang terpilih.",
+      "status": "upcoming",
+      "time": "10.00 - 12.00 WIB",
+      "location": "Ruang Multimedia SMPN 50"
+    },
+    {
+      "id": "timeline-9",
+      "dayDate": "Senin, 28 Oktober 2024",
+      "activity": "Upacara Pelantikan & Serah Terima Jabatan Pengurus OSIS",
+      "description": "Upacara resmi pelantikan Ketua & Wakil Ketua OSIS Terpilih Masa Bakti 2024/2025 bersamaan dengan Peringatan Hari Sumpah Pemuda.",
+      "status": "upcoming",
+      "time": "07.00 - 08.30 WIB",
+      "location": "Lapangan Upacara SMPN 50 Jakarta"
+    }
+  ],
+  "lastVoteTime": "2026-10-17T02:17:01.910Z"
+}
