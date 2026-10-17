@@ -12,3 +12,108 @@
   }
 }
 
+/* ==========================================================================
+   PRINT STYLES FOR OFFICIAL A4 BALLOTS & TOKENS
+   Guarantees 3 ballots per A4 sheet, vector sharpness, and no clipping
+   ========================================================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 4mm 5mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* When ballot print portal is active, completely hide the standard app tree in #root */
+  body.printing-ballots-active #root,
+  body.ballot-modal-open #root {
+    display: none !important;
+  }
+
+  /* Display only the portal container */
+  body.printing-ballots-active #ballot-print-portal,
+  body.ballot-modal-open #ballot-print-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  /* Reset fixed modal wrappers during print so all pages flow continuously */
+  .print-modal-container {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  .print-modal-content {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  .print-scroll-container {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Strict A4 page definition: exactly 3 ballots per page */
+  .a4-page {
+    width: 200mm !important;
+    height: 287mm !important;
+    min-height: 287mm !important;
+    max-height: 287mm !important;
+    margin: 0 auto !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .ballot-card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    height: 92mm !important;
+    max-height: 92mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}

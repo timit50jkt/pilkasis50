@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useCall
 import { CandidatePair, ElectionSettings, VoterToken, VoteRecord, AuditLogItem, VoterCategory, TimelineItem } from '../types/election';
 import { CANDIDATE_PAIRS, INITIAL_SETTINGS, generateInitialTokensAndVotes, INITIAL_TIMELINE } from '../data/initialData';
 import { audioManager } from '../utils/audio';
-import { initSupabaseClient, fetchAllFromSupabase, testSupabaseConnection, safeSupabaseOperation } from '../utils/supabase';
+import { initSupabaseClient, fetchAllFromSupabase, testSupabaseConnection, safeSupabaseOperation, getSupabaseCredentials, pushAllToSupabase, cleanSupabaseUrl } from '../utils/supabase';
 
 const STORAGE_KEY = 'smpn50_election_store_v2';
 const BROADCAST_NAME = 'smpn50_election_broadcast';
@@ -62,6 +62,8 @@ export interface ElectionContextType {
   updateAdminPassword: (newPin: string) => { success: boolean; message: string };
   connectSupabase: (url: string, key: string) => Promise<{ success: boolean; message: string }>;
   disconnectSupabase: () => void;
+  uploadToSupabase: () => Promise<{ success: boolean; message: string }>;
+  refreshFromSupabase: () => Promise<{ success: boolean; message: string }>;
   addAuditLog: (action: string, details: string, type?: AuditLogItem['type']) => void;
   // Timeline Pilkasis Management
   timeline: TimelineItem[];
@@ -220,30 +222,47 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [tokens.length, settings.totalRegisteredVoters]);
 
-  // Attempt to load Supabase if configured in env or settings
+  // Attempt to load Supabase if configured in env, url params, or settings
   useEffect(() => {
-    const client = initSupabaseClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const creds = getSupabaseCredentials(settings.supabaseUrl, settings.supabaseAnonKey);
+    const client = initSupabaseClient(creds.url, creds.key);
     if (!client) {
       setSupabaseConnected(false);
       return;
     }
 
     let isMounted = true;
+
+    // Helper to apply fetched data
+    const applyRemoteData = (data: NonNullable<Awaited<ReturnType<typeof fetchAllFromSupabase>>>) => {
+      if (!isMounted) return;
+      setSupabaseConnected(true);
+      if (data.candidates && data.candidates.length > 0) setCandidates(data.candidates);
+      if (data.tokens && data.tokens.length > 0) setTokens(data.tokens);
+      if (data.votes) setVotes(data.votes);
+      if (data.settings) {
+        setSettings((prev) => ({
+          ...prev,
+          ...data.settings,
+          supabaseUrl: creds.url,
+          supabaseAnonKey: creds.key,
+          useSupabase: true
+        }));
+      }
+      if (data.auditLogs && data.auditLogs.length > 0) setAuditLogs(data.auditLogs);
+      if (data.timeline && data.timeline.length > 0) setTimeline(data.timeline);
+    };
+
     fetchAllFromSupabase(client)
       .then((data) => {
         if (!isMounted || !data) return;
-        setSupabaseConnected(true);
-        if (data.candidates && data.candidates.length > 0) setCandidates(data.candidates);
-        if (data.tokens && data.tokens.length > 0) setTokens(data.tokens);
-        if (data.votes) setVotes(data.votes);
-        if (data.settings) setSettings(data.settings);
-        if (data.auditLogs && data.auditLogs.length > 0) setAuditLogs(data.auditLogs);
+        applyRemoteData(data);
       })
       .catch((err) => {
         console.warn('Could not fetch Supabase data:', err);
       });
 
-    // Realtime subscription
+    // Realtime subscription across all tables
     let channel: ReturnType<typeof client.channel> | null = null;
     try {
       channel = client
@@ -269,7 +288,14 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
           fetchAllFromSupabase(client).then((d) => {
-            if (d?.settings) setSettings(d.settings);
+            if (d?.settings) {
+              setSettings((prev) => ({ ...prev, ...d.settings }));
+            }
+          });
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'timeline' }, () => {
+          fetchAllFromSupabase(client).then((d) => {
+            if (d?.timeline && d.timeline.length > 0) setTimeline(d.timeline);
           });
         })
         .subscribe();
@@ -277,8 +303,33 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.warn('Realtime subscription skipped:', err);
     }
 
+    // Mobile resilience: Re-fetch on tab focus or screen unlock
+    const handleFocusOrVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchAllFromSupabase(client).then((d) => {
+          if (d) applyRemoteData(d);
+        });
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocusOrVisible);
+      document.addEventListener('visibilitychange', handleFocusOrVisible);
+    }
+
+    // Periodic sync every 7 seconds for mobile browser resilience
+    const intervalTimer = setInterval(() => {
+      fetchAllFromSupabase(client).then((d) => {
+        if (d) applyRemoteData(d);
+      });
+    }, 7000);
+
     return () => {
       isMounted = false;
+      clearInterval(intervalTimer);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleFocusOrVisible);
+        document.removeEventListener('visibilitychange', handleFocusOrVisible);
+      }
       if (channel) {
         try {
           client.removeChannel(channel);
@@ -1265,36 +1316,50 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Connect Supabase
   const connectSupabase = useCallback(async (url: string, key: string) => {
-    const test = await testSupabaseConnection(url, key);
+    const cleanedUrl = cleanSupabaseUrl(url);
+    const cleanedKey = key.trim();
+    const test = await testSupabaseConnection(cleanedUrl, cleanedKey);
     if (!test.success) {
       return test;
     }
 
-    localStorage.setItem('smpn50_supabase_url', url);
-    localStorage.setItem('smpn50_supabase_key', key);
+    localStorage.setItem('smpn50_supabase_url', cleanedUrl);
+    localStorage.setItem('smpn50_supabase_key', cleanedKey);
 
     setSettings((prev) => ({
       ...prev,
-      supabaseUrl: url,
-      supabaseAnonKey: key,
+      supabaseUrl: cleanedUrl,
+      supabaseAnonKey: cleanedKey,
       useSupabase: true
     }));
 
-    const client = initSupabaseClient(url, key);
+    const client = initSupabaseClient(cleanedUrl, cleanedKey);
     if (client) {
       const data = await fetchAllFromSupabase(client);
-      if (data) {
-        if (data.candidates && data.candidates.length > 0) setCandidates(data.candidates);
+      if (data && data.candidates && data.candidates.length > 0) {
+        // Supabase already has data - adopt it
+        if (data.candidates) setCandidates(data.candidates);
         if (data.tokens && data.tokens.length > 0) setTokens(data.tokens);
         if (data.votes) setVotes(data.votes);
         if (data.settings) setSettings(data.settings);
         if (data.auditLogs && data.auditLogs.length > 0) setAuditLogs(data.auditLogs);
+        if (data.timeline && data.timeline.length > 0) setTimeline(data.timeline);
+      } else {
+        // Supabase is empty or fresh - upload all local state immediately so other devices (HP, laptops) can see everything!
+        await pushAllToSupabase(client, {
+          settings,
+          candidates,
+          tokens,
+          votes,
+          auditLogs,
+          timeline
+        });
       }
       setSupabaseConnected(true);
     }
 
-    return { success: true, message: 'Koneksi ke Supabase berhasil! Data disinkronkan secara langsung.' };
-  }, []);
+    return { success: true, message: 'Koneksi ke Supabase berhasil! Seluruh data disinkronkan secara langsung.' };
+  }, [candidates, tokens, votes, settings, auditLogs, timeline]);
 
   const disconnectSupabase = useCallback(() => {
     localStorage.removeItem('smpn50_supabase_url');
@@ -1303,12 +1368,65 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSettings((prev) => ({ ...prev, useSupabase: false, supabaseUrl: '', supabaseAnonKey: '' }));
   }, []);
 
-  // Timeline Management
+  // Upload complete state to Supabase
+  const uploadToSupabase = useCallback(async () => {
+    const client = initSupabaseClient();
+    if (!client) {
+      return { success: false, message: 'Database Supabase belum terhubung. Konfigurasikan URL dan Key terlebih dahulu.' };
+    }
+    return await pushAllToSupabase(client, {
+      settings,
+      candidates,
+      tokens,
+      votes,
+      auditLogs,
+      timeline
+    });
+  }, [settings, candidates, tokens, votes, auditLogs, timeline]);
+
+  // Pull latest state from Supabase
+  const refreshFromSupabase = useCallback(async () => {
+    const client = initSupabaseClient();
+    if (!client) {
+      return { success: false, message: 'Database Supabase belum terhubung.' };
+    }
+    const data = await fetchAllFromSupabase(client);
+    if (!data) {
+      return { success: false, message: 'Gagal mengambil data dari Supabase.' };
+    }
+    if (data.candidates && data.candidates.length > 0) setCandidates(data.candidates);
+    if (data.tokens && data.tokens.length > 0) setTokens(data.tokens);
+    if (data.votes) setVotes(data.votes);
+    if (data.settings) setSettings(data.settings);
+    if (data.auditLogs && data.auditLogs.length > 0) setAuditLogs(data.auditLogs);
+    if (data.timeline && data.timeline.length > 0) setTimeline(data.timeline);
+    return { success: true, message: 'Data berhasil disegarkan dari Supabase!' };
+  }, []);
+
+  // Timeline Management with Server & Supabase sync
   const addTimelineItem = useCallback((item: TimelineItem) => {
     setTimeline((prev) => {
       const next = [...prev, item];
       addAuditLog('Agenda Pilkasis Ditambahkan', `Kegiatan "${item.activity}" pada ${item.dayDate} ditambahkan.`, 'config');
       syncToServer({ timeline: next });
+
+      const client = initSupabaseClient();
+      if (client) {
+        safeSupabaseOperation(
+          client.from('timeline').upsert({
+            id: item.id,
+            order_index: next.length,
+            time: item.time,
+            day_date: item.dayDate,
+            activity: item.activity,
+            status: item.status,
+            badge_text: item.badgeText,
+            badge_color: item.badgeColor,
+            description: item.description || ''
+          })
+        );
+      }
+
       return next;
     });
   }, [addAuditLog, syncToServer]);
@@ -1318,6 +1436,26 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const next = prev.map((item) => (item.id === id ? { ...item, ...updated } : item));
       addAuditLog('Agenda Pilkasis Diperbarui', `Kegiatan timeline ID ${id} berhasil diperbarui.`, 'config');
       syncToServer({ timeline: next });
+
+      const client = initSupabaseClient();
+      if (client) {
+        const item = next.find((t) => t.id === id);
+        if (item) {
+          safeSupabaseOperation(
+            client.from('timeline').upsert({
+              id: item.id,
+              time: item.time,
+              day_date: item.dayDate,
+              activity: item.activity,
+              status: item.status,
+              badge_text: item.badgeText,
+              badge_color: item.badgeColor,
+              description: item.description || ''
+            })
+          );
+        }
+      }
+
       return next;
     });
   }, [addAuditLog, syncToServer]);
@@ -1327,6 +1465,12 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const next = prev.filter((item) => item.id !== id);
       addAuditLog('Agenda Pilkasis Dihapus', `Tahapan timeline ID ${id} dihapus.`, 'config');
       syncToServer({ timeline: next });
+
+      const client = initSupabaseClient();
+      if (client) {
+        safeSupabaseOperation(client.from('timeline').delete().eq('id', id));
+      }
+
       return next;
     });
   }, [addAuditLog, syncToServer]);
@@ -1337,6 +1481,26 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const [removed] = result.splice(startIndex, 1);
       result.splice(endIndex, 0, removed);
       syncToServer({ timeline: result });
+
+      const client = initSupabaseClient();
+      if (client) {
+        safeSupabaseOperation(
+          client.from('timeline').upsert(
+            result.map((item, idx) => ({
+              id: item.id,
+              order_index: idx + 1,
+              time: item.time,
+              day_date: item.dayDate,
+              activity: item.activity,
+              status: item.status,
+              badge_text: item.badgeText,
+              badge_color: item.badgeColor,
+              description: item.description || ''
+            }))
+          )
+        );
+      }
+
       return result;
     });
   }, [syncToServer]);
@@ -1345,6 +1509,25 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setTimeline(INITIAL_TIMELINE);
     addAuditLog('Agenda Pilkasis Direset', 'Timeline proses Pilkasis dipulihkan ke data standar bawaan.', 'config');
     syncToServer({ timeline: INITIAL_TIMELINE });
+
+    const client = initSupabaseClient();
+    if (client) {
+      safeSupabaseOperation(
+        client.from('timeline').upsert(
+          INITIAL_TIMELINE.map((item, idx) => ({
+            id: item.id,
+            order_index: idx + 1,
+            time: item.time,
+            day_date: item.dayDate,
+            activity: item.activity,
+            status: item.status,
+            badge_text: item.badgeText,
+            badge_color: item.badgeColor,
+            description: item.description || ''
+          }))
+        )
+      );
+    }
   }, [addAuditLog, syncToServer]);
 
   // Compute stats
@@ -1471,6 +1654,8 @@ export const ElectionProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateAdminPassword,
         connectSupabase,
         disconnectSupabase,
+        uploadToSupabase,
+        refreshFromSupabase,
         addAuditLog,
         timeline,
         addTimelineItem,

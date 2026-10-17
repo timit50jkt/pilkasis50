@@ -89,4 +89,6 @@ export interface TimelineItem {
   status: TimelineStatus; // Status tahapan
   time?: string; // Waktu pelaksanaan (opsional)
   location?: string; // Lokasi / Tempat (opsional)
+  badgeText?: string;
+  badgeColor?: string;
 }

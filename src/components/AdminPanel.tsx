@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useElection } from '../context/ElectionContext';
+import { cleanSupabaseUrl } from '../utils/supabase';
 import { CandidatePair, VoterToken, VoterCategory, TimelineItem, TimelineStatus } from '../types/election';
 import { PrintTokenModal } from './PrintTokenModal';
+import { PrintBallotModal } from './PrintBallotModal';
 import { TableImportModal } from './TableImportModal';
 import {
   ShieldCheck,
@@ -42,7 +44,11 @@ import {
   MapPin,
   ArrowUp,
   ArrowDown,
-  Sparkles
+  Sparkles,
+  Share2,
+  ExternalLink,
+  RefreshCw,
+  UploadCloud
 } from 'lucide-react';
 
 export interface TableImportRow {
@@ -86,6 +92,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
     updateAdminPassword,
     connectSupabase,
     disconnectSupabase,
+    uploadToSupabase,
+    refreshFromSupabase,
     timeline,
     addTimelineItem,
     updateTimelineItem,
@@ -199,9 +207,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
   const [supabaseKeyInput, setSupabaseKeyInput] = useState(settings.supabaseAnonKey || '');
   const [supabaseStatusMsg, setSupabaseStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isTestingSupabase, setIsTestingSupabase] = useState(false);
+  const [isUploadingToSupabase, setIsUploadingToSupabase] = useState(false);
+  const [isRefreshingFromSupabase, setIsRefreshingFromSupabase] = useState(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+  const [copiedSqlSchema, setCopiedSqlSchema] = useState(false);
 
   // Modals & Refs
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showPrintBallotModal, setShowPrintBallotModal] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const newCandPhotoRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -1524,7 +1537,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold border border-slate-300"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Cetak Kartu Token ({filteredTokens.length})</span>
+                  <span>Cetak Kartu Token</span>
+                </button>
+                <button
+                  onClick={() => setShowPrintBallotModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                  title="Cetak Surat Suara resmi A4 format 3 surat suara per lembar lengkap dengan foto paslon dan token DPT"
+                >
+                  <FileText className="w-3.5 h-3.5 text-indigo-200" />
+                  <span>Cetak Surat Suara A4 (3 per Lembar)</span>
                 </button>
               </div>
 
@@ -2305,21 +2326,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            {/* Export */}
+            {/* Export & Dokumen Pemilihan */}
             <div className="bg-white rounded-xl p-5 border border-slate-200 space-y-3">
               <h4 className="font-bold text-slate-900 text-sm">
-                Rekapitulasi Berita Acara Resmi
+                Dokumen Resmi & Rekapitulasi Pemilihan
               </h4>
               <p className="text-xs text-slate-500">
-                Unduh rekap data suara masuk ke format CSV untuk tanda tangan berita acara dan laporan sekolah.
+                Cetak surat suara fisik format A4 (3 per lembar dengan token unik DPT) dan unduh data rekapitulasi suara masuk untuk berita acara resmi.
               </p>
-              <button
-                onClick={handleDownloadCsv}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Unduh Data Suara (.CSV)</span>
-              </button>
+              <div className="flex flex-wrap gap-2.5">
+                <button
+                  onClick={() => setShowPrintBallotModal(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-xs"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Cetak Surat Suara Fisik (A4 - 3/Lembar)</span>
+                </button>
+                <button
+                  onClick={handleDownloadCsv}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Unduh Data Suara (.CSV)</span>
+                </button>
+              </div>
             </div>
 
             {/* Reset Area */}
@@ -2357,15 +2387,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
         {/* TAB 5: SUPABASE DATABASE & DEPLOYMENT */}
         {adminTab === 'supabase' && (
           <div className="space-y-6 overflow-y-auto pr-1 flex-1">
+            {/* Status Card */}
             <div className={`p-4 rounded-xl border ${
               supabaseConnected
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : 'bg-slate-50 border-slate-200 text-slate-800'
+                : 'bg-amber-50 border-amber-200 text-amber-900'
             }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5 font-bold text-sm">
-                  <Database className="w-5 h-5 text-emerald-600" />
-                  <span>Status Database Supabase: {supabaseConnected ? 'TERHUBUNG (Realtime Aktif)' : 'Mode Penyimpanan Lokal (Offline Ready)'}</span>
+                  <Database className={`w-5 h-5 ${supabaseConnected ? 'text-emerald-600' : 'text-amber-600'}`} />
+                  <span>
+                    Status Cloud Database Supabase:{' '}
+                    {supabaseConnected ? 'TERHUBUNG AKTIF (Realtime Antar Perangkat)' : 'Mode Lokal (Belum Terhubung ke Cloud)'}
+                  </span>
                 </div>
                 {supabaseConnected && (
                   <button
@@ -2376,28 +2410,162 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-slate-600 mt-1">
-                Ketika terhubung dengan Supabase, setiap perubahan kandidat, DPT, dan perolehan suara langsung tersimpan secara terpusat di cloud Supabase.
+              <p className="text-xs mt-1.5 leading-relaxed">
+                {supabaseConnected
+                  ? 'Setiap penambahan/pengeditan paslon, foto, program kerja unggulan, DPT, dan perolehan suara langsung tersinkron secara REALTIME ke seluruh HP, laptop, dan proyektor di manapun!'
+                  : 'Saat ini sistem berjalan dalam penyimpanan browser lokal. Agar perubahan dapat dilihat oleh siapapun dari HP atau device lain (termasuk saat di-deploy ke Vercel), Anda wajib menghubungkan Supabase.'}
               </p>
             </div>
 
+            {/* Quick Sync & Cloud Push Actions */}
+            {supabaseConnected && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 sm:p-5 rounded-xl border border-blue-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-bold text-blue-900 uppercase">
+                    Sinkronisasi Data Lokal ke Cloud Supabase
+                  </h4>
+                </div>
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  Jika Anda baru saja selesai mengedit nama Paslon, mengunggah foto, menambah program kerja, atau mengimpor DPT di komputer ini, klik tombol di bawah agar seluruh data lokal segera terunggah ke database cloud Supabase sehingga langsung tampil di HP siapapun.
+                </p>
+
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  <button
+                    type="button"
+                    disabled={isUploadingToSupabase}
+                    onClick={async () => {
+                      setIsUploadingToSupabase(true);
+                      const res = await uploadToSupabase();
+                      showToast(res.message);
+                      setIsUploadingToSupabase(false);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
+                  >
+                    <UploadCloud className="w-4 h-4" />
+                    <span>{isUploadingToSupabase ? 'Mengunggah Data ke Cloud...' : 'Unggah Seluruh Data Lokal ke Supabase'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isRefreshingFromSupabase}
+                    onClick={async () => {
+                      setIsRefreshingFromSupabase(true);
+                      const res = await refreshFromSupabase();
+                      showToast(res.message);
+                      setIsRefreshingFromSupabase(false);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-lg text-xs font-semibold shadow-xs transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingFromSupabase ? 'animate-spin' : ''}`} />
+                    <span>Tarik Data Terbaru dari Supabase</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const shareUrl = `${window.location.origin}${window.location.pathname}?sb_url=${encodeURIComponent(supabaseUrlInput || settings.supabaseUrl || '')}&sb_key=${encodeURIComponent(supabaseKeyInput || settings.supabaseAnonKey || '')}`;
+                      navigator.clipboard.writeText(shareUrl);
+                      setCopiedShareLink(true);
+                      showToast('✓ Link akses sinkron HP disalin! Kirim via WhatsApp/buka di HP.');
+                      setTimeout(() => setCopiedShareLink(false), 3000);
+                    }}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                  >
+                    {copiedShareLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                    <span>{copiedShareLink ? 'Link Tersalin!' : 'Salin Link Akses HP (Auto-Connect)'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Vercel Deployment Instructions Box */}
+            <div className="bg-slate-900 text-slate-100 p-5 rounded-xl border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/40 rounded text-[11px] font-bold">
+                    PANDUAN VERCEL
+                  </span>
+                  <h4 className="text-xs font-bold uppercase tracking-wide">
+                    Mengapa Perubahan Tidak Tampil di HP Saat Dibuka di Vercel?
+                  </h4>
+                </div>
+              </div>
+
+              <div className="text-xs text-slate-300 space-y-2 leading-relaxed">
+                <p>
+                  Vercel merupakan hosting frontend statis. File server lokal (<code className="bg-slate-800 px-1 py-0.5 rounded text-blue-300">server.ts</code>) tidak dijalankan oleh Vercel. Oleh karena itu, <strong>setiap device baru (HP/laptop lain) membutuhkan database cloud Supabase</strong> agar dapat melihat perubahan paslon, program kerja, dan perolehan suara.
+                </p>
+
+                <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700 space-y-2 mt-2">
+                  <p className="font-semibold text-white text-[11px]">
+                    Langkah agar seluruh HP langsung sinkron otomatis saat membuka web Vercel:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-300">
+                    <li>
+                      Buka <strong>Vercel Dashboard</strong> &rarr; pilih Project Anda &rarr; klik tab <strong>Settings</strong> &rarr; <strong>Environment Variables</strong>.
+                    </li>
+                    <li>
+                      Tambahkan 2 variabel berikut:
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5">
+                        <div className="bg-slate-950 p-2 rounded border border-slate-700 font-mono text-[10px]">
+                          <span className="text-slate-400 block">KEY 1:</span>
+                          <span className="text-emerald-400 font-bold">VITE_SUPABASE_URL</span>
+                        </div>
+                        <div className="bg-slate-950 p-2 rounded border border-slate-700 font-mono text-[10px]">
+                          <span className="text-slate-400 block">KEY 2:</span>
+                          <span className="text-emerald-400 font-bold">VITE_SUPABASE_ANON_KEY</span>
+                        </div>
+                      </div>
+                    </li>
+                    <li>
+                      Klik <strong>Save</strong> lalu lakukan <strong>Redeploy</strong> di Vercel. Setelah itu, setiap orang yang membuka web di HP manapun otomatis langsung terhubung ke database dan sinkron realtime tanpa perlu setup apapun!
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            {/* Supabase Credentials Form */}
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
               <h4 className="text-xs font-bold text-slate-900 uppercase">
-                Pengaturan Kredensial Supabase
+                Pengaturan Kredensial Database Supabase
               </h4>
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    SUPABASE PROJECT URL
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      SUPABASE PROJECT URL
+                    </label>
+                    <span className="text-[11px] text-amber-600 font-medium">
+                      (Wajib tanpa /rest/v1/)
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={supabaseUrlInput}
-                    onChange={(e) => setSupabaseUrlInput(e.target.value)}
-                    placeholder="https://xyzcompany.supabase.co"
-                    className="w-full p-2.5 text-xs font-mono border rounded-lg"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val.includes('/rest/v1')) {
+                        const cleaned = cleanSupabaseUrl(val);
+                        setSupabaseUrlInput(cleaned);
+                        showToast('✓ Otomatis merapikan: akhiran /rest/v1/ dihapus.');
+                      } else {
+                        setSupabaseUrlInput(val);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (supabaseUrlInput.trim()) {
+                        setSupabaseUrlInput(cleanSupabaseUrl(supabaseUrlInput));
+                      }
+                    }}
+                    placeholder="Contoh: https://wvhdmsljkmvyicfoxlai.supabase.co"
+                    className="w-full p-2.5 text-xs font-mono border rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                   />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Format yang benar adalah alamat domain saja, misal: <code className="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono text-[10px]">https://wvhdmsljkmvyicfoxlai.supabase.co</code> (jangan sertakan <code className="text-rose-600 line-through">/rest/v1/</code>).
+                  </p>
                 </div>
 
                 <div>
@@ -2407,9 +2575,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   <input
                     type="password"
                     value={supabaseKeyInput}
-                    onChange={(e) => setSupabaseKeyInput(e.target.value)}
+                    onChange={(e) => setSupabaseKeyInput(e.target.value.trim())}
                     placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    className="w-full p-2.5 text-xs font-mono border rounded-lg"
+                    className="w-full p-2.5 text-xs font-mono border rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                   />
                 </div>
               </div>
@@ -2445,28 +2613,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
                   }}
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
                 >
-                  {isTestingSupabase ? 'Menghubungkan...' : 'Uji & Simpan Koneksi Supabase'}
+                  {isTestingSupabase ? 'Menghubungkan & Memeriksa Database...' : 'Uji & Simpan Koneksi Supabase'}
                 </button>
               </div>
             </div>
 
+            {/* SQL Schema Script Box */}
             <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 uppercase">
-                    Skema SQL Supabase
+                    Skema SQL Lengkap Supabase (Idempotent)
                   </h4>
-                  <p className="text-xs text-slate-500">
-                    Unduh skrip skema tabel (settings, candidates, voters, votes, audit_logs) untuk di-run di SQL Editor Supabase.
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Mencakup 6 tabel: <code>settings</code>, <code>candidates</code>, <code>voters</code>, <code>votes</code>, <code>audit_logs</code>, dan <code>timeline</code> beserta Realtime & RLS.
                   </p>
                 </div>
-                <button
-                  onClick={handleDownloadSqlSchema}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Unduh supabase_schema.sql</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/supabase_schema.sql');
+                        const text = await res.text();
+                        await navigator.clipboard.writeText(text);
+                        setCopiedSqlSchema(true);
+                        showToast('✓ Seluruh skrip SQL skema disalin ke clipboard! Tempelkan di Supabase SQL Editor.');
+                        setTimeout(() => setCopiedSqlSchema(false), 3000);
+                      } catch {
+                        handleDownloadSqlSchema();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-xs"
+                  >
+                    {copiedSqlSchema ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedSqlSchema ? 'SQL Tersalin!' : 'Salin SQL Skema'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadSqlSchema}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh supabase_schema.sql</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -3292,11 +3484,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* PRINT MODAL */}
+        {/* PRINT MODAL KARTU TOKEN */}
         {showPrintModal && (
           <PrintTokenModal
             tokens={filteredTokens}
             onClose={() => setShowPrintModal(false)}
+          />
+        )}
+
+        {/* PRINT MODAL SURAT SUARA RESMI A4 (3 PER LEMBAR) */}
+        {showPrintBallotModal && (
+          <PrintBallotModal
+            tokens={tokens}
+            onClose={() => setShowPrintBallotModal(false)}
           />
         )}
 
